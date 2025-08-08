@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:vista/constant/colors.dart';
 import 'package:vista/data/onboarding_data.dart';
 import 'package:vista/screens/onboarding/front_page.dart';
 import 'package:vista/screens/onboarding/shared_onboarding.dart'
@@ -15,6 +14,7 @@ class OnboardingScreens extends StatefulWidget {
 
 class _OnboardingScreensState extends State<OnboardingScreens> {
   final PageController _pageController = PageController();
+  bool showDetailsPage = false;
   int _currentpage = 0;
 
   @override
@@ -47,30 +47,34 @@ class _OnboardingScreensState extends State<OnboardingScreens> {
                       description:
                           OnboardingData.onboardingDataList[0].description,
                     ),
-                    Container(color: Colors.red),
                   ],
                 ),
 
                 if (_currentpage == 1) ...[
                   Positioned(
                     bottom: 200,
-                    left: 20,
-                    right: 20,
+                    left: 70,
+                    right: 70,
+                    height: 55,
                     child: CustomButton(
-                      buttonName: "Log In",
+                      buttonName: "Sign In",
+
+                      // fontSize: 22, // Removed or replace with the correct parameter if available
                       onPressed: () {
-                        Navigator.pushNamed(context, '/login');
+                        Navigator.pushNamed(context, '/Sign In');
                       },
                     ),
                   ),
                   Positioned(
                     bottom: 100,
-                    left: 20,
-                    right: 20,
+                    left: 70,
+                    right: 70,
+                    height: 55,
                     child: CustomButton(
-                      buttonName: "Register",
+                      buttonName: "Sign Up",
+
                       onPressed: () {
-                        Navigator.pushNamed(context, '/Register');
+                        Navigator.pushNamed(context, '/Sign Up');
                       },
                     ),
                   ),

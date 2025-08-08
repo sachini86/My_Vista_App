@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:vista/screens/onboarding_screens.dart';
+import 'package:vista/screens/onboarding/sign_inpage.dart';
+import 'package:vista/screens/onboarding/signup_page.dart';
+import 'package:vista/screens/onboarding/choose_rolepage.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const MyApp());
 }
 
@@ -14,7 +20,13 @@ class MyApp extends StatelessWidget {
       title: "VistA",
       debugShowCheckedModeBanner: false,
       theme: ThemeData(fontFamily: "Nonile"),
-      home: OnboardingScreens(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const OnboardingScreens(),
+        '/Sign In': (context) => const SignInPage(),
+        '/Sign Up': (context) => const SignupPage(),
+        '/chooseRole': (context) => const ChooseRolePage(),
+      },
     );
   }
 }
