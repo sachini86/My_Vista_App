@@ -70,15 +70,22 @@ class _SignInPageState extends State<SignInPage> {
     setState(() => _isLoading = true);
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email']);
+      await googleSignIn.signOut();
+      log("Forced Google Sign-Out done.");
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      log("GoogleSignInAccount: $googleUser");
 
       if (googleUser == null) {
+        log("Google sign-in cancelled by user.");
         setState(() => _isLoading = false);
         return;
       }
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
+      log(
+        "Google auth tokens obtained: accessToken=${googleAuth.accessToken}, idToken=${googleAuth.idToken}",
+      );
 
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken, // ✅ FIXED
@@ -86,9 +93,9 @@ class _SignInPageState extends State<SignInPage> {
       );
 
       await FirebaseAuth.instance.signInWithCredential(credential);
+      log("✅ Firebase sign-in with Google credential successful.");
 
       if (!mounted) return;
-      log("✅ Google login successful, navigating to ChooseRolePage...");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(

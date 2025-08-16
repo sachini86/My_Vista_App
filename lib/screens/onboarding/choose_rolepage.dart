@@ -1,23 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:vista/screens/onboarding/artisthomepage.dart';
+import 'package:vista/screens/CustomHome/custom_home.dart';
 
 // Dummy pages for navigation
-class ArtistHomePage extends StatelessWidget {
-  const ArtistHomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: Text("🎨 Artist Home Page")));
-  }
-}
-
-class BuyerHomePage extends StatelessWidget {
-  const BuyerHomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: Text("🛒 Buyer Home Page")));
-  }
-}
 
 class ChooseRolePage extends StatefulWidget {
   const ChooseRolePage({super.key});
@@ -41,12 +26,12 @@ class _ChooseRolePageState extends State<ChooseRolePage> {
     if (selectedRole == "artist") {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const ArtistHomePage()),
+        MaterialPageRoute(builder: (context) => const Artisthomepage()),
       );
     } else if (selectedRole == "buyer") {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const BuyerHomePage()),
+        MaterialPageRoute(builder: (context) => const CustomerHomePage()),
       );
     }
   }

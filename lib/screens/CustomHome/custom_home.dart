@@ -5,6 +5,9 @@ class CustomerHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: Text("🛍️ Customer Home Page")));
+    return Scaffold(
+      appBar: AppBar(title: const Text("Customer Home")),
+      body: const Center(child: Text("Welcome to the Customer Home Page")),
+    );
   }
 }

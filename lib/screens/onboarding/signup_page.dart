@@ -1,8 +1,10 @@
+import 'dart:developer';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import 'package:vista/screens/onboarding/choose_rolepage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:vista/screens/onboarding/successful_login.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -53,7 +55,7 @@ class _SignupPageState extends State<SignupPage> {
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const ChooseRolePage()),
+          MaterialPageRoute(builder: (context) => const SuccessfulLoginPage()),
         );
       } on FirebaseAuthException catch (e) {
         String message = "";
@@ -80,14 +82,23 @@ class _SignupPageState extends State<SignupPage> {
   Future<void> signInWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email']);
+      await googleSignIn.signOut();
+      log("Forced Google Sign-Out done.");
+
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      log("GoogleSignInAccount: $googleUser");
       if (googleUser == null) {
+        log("Google sign-in cancelled by user.");
         setState(() => _isLoading = false);
         return; // User cancelled sign-in
       }
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
+      log(
+        "Google auth tokens: accessToken=${googleAuth.accessToken}, idToken=${googleAuth.idToken}",
+      );
 
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.idToken,
@@ -95,6 +106,7 @@ class _SignupPageState extends State<SignupPage> {
       );
 
       await FirebaseAuth.instance.signInWithCredential(credential);
+      log("Firebase sign-in with Google credential success");
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -113,7 +125,7 @@ class _SignupPageState extends State<SignupPage> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const ChooseRolePage()),
+        MaterialPageRoute(builder: (context) => const SuccessfulLoginPage()),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

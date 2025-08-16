@@ -14,7 +14,7 @@ class SharedOnboardingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xffEDEDEB), // Light background
+      backgroundColor: Colors.white, // Light background
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 5),
         child: Column(
