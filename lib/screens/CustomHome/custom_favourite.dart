@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:vista/screens/CustomHome/bottom_nav_bar.dart';
 
-class CustomerHomePage extends StatelessWidget {
-  const CustomerHomePage({super.key});
+class CustomFavourite extends StatelessWidget {
+  const CustomFavourite({super.key});
 
   @override
   Widget build(BuildContext context) {
