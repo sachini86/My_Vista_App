@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:vista/screens/CustomHome/bottom_nav_bar.dart';
 
-class CustomChat extends StatelessWidget {
+class CustomChat extends StatefulWidget {
   const CustomChat({super.key});
 
   @override
+  State<CustomChat> createState() => _CustomChatState();
+}
+
+class _CustomChatState extends State<CustomChat> {
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(bottomNavigationBar: const RoundedBottomnavbar());
+    return Scaffold(backgroundColor: Colors.blue);
   }
 }

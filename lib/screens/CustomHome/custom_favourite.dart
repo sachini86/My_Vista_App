@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:vista/screens/CustomHome/bottom_nav_bar.dart';
 
-class CustomFavourite extends StatelessWidget {
+class CustomFavourite extends StatefulWidget {
   const CustomFavourite({super.key});
 
   @override
+  State<CustomFavourite> createState() => _CustomFavouriteState();
+}
+
+class _CustomFavouriteState extends State<CustomFavourite> {
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(bottomNavigationBar: const RoundedBottomnavbar());
+    return Scaffold(backgroundColor: Colors.red);
   }
 }

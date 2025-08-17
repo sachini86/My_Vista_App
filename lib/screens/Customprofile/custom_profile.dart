@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:vista/screens/CustomHome/bottom_nav_bar.dart';
 
-class CustomProfile extends StatelessWidget {
+class CustomProfile extends StatefulWidget {
   const CustomProfile({super.key});
 
   @override
+  State<CustomProfile> createState() => _CustomProfileState();
+}
+
+class _CustomProfileState extends State<CustomProfile> {
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(bottomNavigationBar: const RoundedBottomnavbar());
+    return Scaffold(backgroundColor: Colors.yellow);
   }
 }

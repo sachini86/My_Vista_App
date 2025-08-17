@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vista/screens/onboarding/artisthomepage.dart';
-import 'package:vista/screens/CustomHome/custom_home.dart';
-
+import 'package:vista/screens/CustomHome/bottom_nav_bar.dart';
 // Dummy pages for navigation
 
 class ChooseRolePage extends StatefulWidget {
@@ -31,7 +30,7 @@ class _ChooseRolePageState extends State<ChooseRolePage> {
     } else if (selectedRole == "buyer") {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const CustomerHomePage()),
+        MaterialPageRoute(builder: (context) => const RoundedBottomnavbar()),
       );
     }
   }
