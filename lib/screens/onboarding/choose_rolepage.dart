@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:vista/screens/onboarding/artisthomepage.dart';
+import 'package:vista/screens/ArtistHome/artisthomepage.dart';
 import 'package:vista/screens/CustomHome/bottom_nav_bar.dart';
 // Dummy pages for navigation
 

@@ -2,10 +2,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:vista/screens/onboarding/choose_rolepage.dart';
 import 'package:vista/screens/onboarding/signup_page.dart';
 import 'package:vista/screens/onboarding/forgotpasswordpage.dart';
 import 'dart:developer';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:vista/screens/CustomHome/custom_home.dart';
+import 'package:vista/screens/ArtistHome/artisthomepage.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -22,15 +24,43 @@ class _SignInPageState extends State<SignInPage> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
+  //Redirect userlogin
+  Future<void> _redirectUserBasedOnRole(String uid) async {
+    final doc = await FirebaseFirestore.instance
+        .collection("users")
+        .doc(uid)
+        .get();
+
+    if (doc.exists) {
+      String role = doc["role"];
+      if (!mounted) return;
+
+      if (role == "Artist") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const Artisthomepage()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const CustomerHomePage()),
+        );
+      }
+    }
+  }
+
   /// ✅ Email + Password Login
   Future<void> login() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: emailController.text.trim(),
-          password: passwordController.text.trim(),
-        );
+        UserCredential userCredential = await FirebaseAuth.instance
+            .signInWithEmailAndPassword(
+              email: emailController.text.trim(),
+              password: passwordController.text.trim(),
+            );
+
+        String uid = userCredential.user!.uid;
 
         if (!mounted) return;
         log("✅ Login successful, navigating to ChooseRolePage...");
@@ -44,12 +74,10 @@ class _SignInPageState extends State<SignInPage> {
           ),
         );
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const ChooseRolePage()),
-        );
+        await _redirectUserBasedOnRole(uid);
       } on FirebaseAuthException catch (e) {
         log("❌ FirebaseAuth error: ${e.message}");
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -92,7 +120,8 @@ class _SignInPageState extends State<SignInPage> {
         idToken: googleAuth.idToken,
       );
 
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithCredential(credential);
       log("✅ Firebase sign-in with Google credential successful.");
 
       if (!mounted) return;
@@ -106,12 +135,10 @@ class _SignInPageState extends State<SignInPage> {
         ),
       );
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const ChooseRolePage()),
-      );
+      await _redirectUserBasedOnRole(userCredential.user!.uid);
     } catch (e) {
       log("❌ Google sign-in error: $e");
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:vista/screens/onboarding/successful_login.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -14,6 +15,7 @@ class SignupPage extends StatefulWidget {
 }
 
 class _SignupPageState extends State<SignupPage> {
+  String? _selectedRole;
   final _formKey = GlobalKey<FormState>();
 
   // Controllers
@@ -28,13 +30,35 @@ class _SignupPageState extends State<SignupPage> {
 
   Future<void> registration() async {
     if (_formKey.currentState!.validate()) {
+      if (_selectedRole == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Please select your role",
+              style: TextStyle(color: Colors.black),
+            ),
+            backgroundColor: Color(0xffFDEBEC),
+          ),
+        );
+        return; // stop here, don’t navigate
+      }
       setState(() => _isLoading = true);
 
       try {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: emailController.text.trim(),
-          password: passwordController.text.trim(),
-        );
+        UserCredential userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
+              email: emailController.text.trim(),
+              password: passwordController.text.trim(),
+            );
+        String uid = userCredential.user!.uid; //get current user Id
+
+        //save user data to firestore
+        await FirebaseFirestore.instance.collection("users").doc(uid).set({
+          "name": nameController.text.trim(),
+          "email": emailController.text.trim(),
+          "role": _selectedRole, // Artist or Buyer
+          "createdAt": FieldValue.serverTimestamp(),
+        });
 
         if (!mounted) return;
 
@@ -49,7 +73,7 @@ class _SignupPageState extends State<SignupPage> {
         );
 
         // Small delay so snackbar can be seen
-        await Future.delayed(const Duration(milliseconds: 300));
+        await Future.delayed(const Duration(microseconds: 300));
 
         if (!mounted) return;
 
@@ -80,6 +104,18 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Future<void> signInWithGoogle() async {
+    if (_selectedRole == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Please select your role",
+            style: TextStyle(color: Colors.black),
+          ),
+          backgroundColor: Color(0xffFDEBEC),
+        ),
+      );
+      return; // stop here, don’t proceed
+    }
     setState(() => _isLoading = true);
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email']);
@@ -105,6 +141,26 @@ class _SignupPageState extends State<SignupPage> {
         idToken: googleAuth.idToken,
       );
 
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithCredential(credential);
+
+      User? user = userCredential.user;
+      if (user != null) {
+        // Store user in Firestore if not already exists
+        final doc = FirebaseFirestore.instance
+            .collection("users")
+            .doc(user.uid);
+        final snapshot = await doc.get();
+        if (!snapshot.exists) {
+          await doc.set({
+            "name": user.displayName,
+            "email": user.email,
+            "role": _selectedRole ?? "Buyer", // default role
+            "createdAt": FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
       await FirebaseAuth.instance.signInWithCredential(credential);
       log("Firebase sign-in with Google credential success");
 
@@ -119,7 +175,7 @@ class _SignupPageState extends State<SignupPage> {
         ),
       );
 
-      await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(const Duration(microseconds: 300));
 
       if (!mounted) return;
 
@@ -305,6 +361,7 @@ class _SignupPageState extends State<SignupPage> {
                         }
                         return null;
                       },
+
                       decoration: InputDecoration(
                         hintText: "Confirm password",
                         hintStyle: const TextStyle(fontSize: 12),
@@ -328,8 +385,40 @@ class _SignupPageState extends State<SignupPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 5),
 
+                  // Your role
+                  const Text(
+                    "Your role",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xff930909),
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  // dropdown for choosing role
+                  DropdownButtonFormField(
+                    value: _selectedRole,
+                    decoration: InputDecoration(
+                      hintText: "Select your role",
+                      filled: true,
+                      fillColor: const Color(0xffEDEDED),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(5),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+
+                    items: ["Artist", "Buyer"].map((role) {
+                      return DropdownMenuItem(value: role, child: Text(role));
+                    }).toList(),
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        _selectedRole = newValue;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 30),
                   // Sign Up button
                   SizedBox(
                     width: double.infinity,
