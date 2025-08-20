@@ -6,8 +6,8 @@ import 'package:vista/screens/onboarding/signup_page.dart';
 import 'package:vista/screens/onboarding/forgotpasswordpage.dart';
 import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:vista/screens/CustomHome/custom_home.dart';
 import 'package:vista/screens/ArtistHome/artisthomepage.dart';
+import 'package:vista/screens/CustomHome/bottom_nav_bar.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -38,12 +38,12 @@ class _SignInPageState extends State<SignInPage> {
       if (role == "Artist") {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const Artisthomepage()),
+          MaterialPageRoute(builder: (_) => const ArtistHomePage()),
         );
       } else {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const CustomerHomePage()),
+          MaterialPageRoute(builder: (_) => const RoundedBottomnavbar()),
         );
       }
     }

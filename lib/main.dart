@@ -3,7 +3,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:vista/screens/onboarding_screens.dart';
 import 'package:vista/screens/onboarding/sign_inpage.dart';
 import 'package:vista/screens/onboarding/signup_page.dart';
-import 'package:vista/screens/onboarding/choose_rolepage.dart';
 import 'package:vista/screens/CustomHome/custom_home.dart';
 
 void main() async {
@@ -26,7 +25,6 @@ class MyApp extends StatelessWidget {
         '/': (context) => const OnboardingScreens(),
         '/Sign In': (context) => const SignInPage(),
         '/Sign Up': (context) => const SignupPage(),
-        '/chooseRole': (context) => const ChooseRolePage(),
         '/customHome': (context) => const CustomerHomePage(),
       },
     );

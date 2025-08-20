@@ -43,6 +43,12 @@ dependencies:
   dotted_line: ^3.2.3
   cached_network_image: ^3.4.1
   mask_text_input_formatter: ^2.9.0
+  image_pickers: ^2.0.6
+  signature: ^6.3.0
+  pdf: ^3.11.3
+  printing: ^5.14.2
+  video_thumbnail: ^0.5.6
+  path: ^1.8.4
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

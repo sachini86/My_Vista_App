@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:vista/screens/CustomHome/Widget/customsearch_bar.dart';
 import 'Widget/custom_add.dart';
+import 'Widget/customsearch_bar.dart';
 
 class CustomerHomePage extends StatefulWidget {
   const CustomerHomePage({super.key});
@@ -11,20 +11,21 @@ class CustomerHomePage extends StatefulWidget {
 
 class _CustomerHomePageState extends State<CustomerHomePage> {
   int currentslide = 0;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SingleChildScrollView(
         child: Padding(
-          padding: EdgeInsets.all(20),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(height: 30),
-              CustomAppBar(),
-              SizedBox(height: 20),
-              CustomSearchBar(),
-              SizedBox(height: 20),
+              const SizedBox(height: 30),
+              const CustomAppBar(),
+              const SizedBox(height: 20),
+              const CustomSearchBar(),
+              const SizedBox(height: 20),
               CustomAdd(
                 currentSlide: currentslide,
                 onChange: (value) {
@@ -33,17 +34,15 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                   });
                 },
               ),
-              SizedBox(height: 15),
+              const SizedBox(height: 15),
               _categoryButtons(),
-              SizedBox(height: 25),
+              const SizedBox(height: 25),
               _sectionTitle("Artists"),
-              SizedBox(height: 15),
+              const SizedBox(height: 15),
               _artistsList(),
-              SizedBox(height: 30),
+              const SizedBox(height: 30),
               _sectionTitle("Pick your one"),
               _artworksGrid(sampleTrendingArts),
-
-              // Trending Arts section
             ],
           ),
         ),
@@ -63,7 +62,7 @@ class CustomAppBar extends StatelessWidget {
         IconButton(
           style: IconButton.styleFrom(
             backgroundColor: Colors.grey[200],
-            padding: EdgeInsets.all(10),
+            padding: const EdgeInsets.all(10),
           ),
           onPressed: () {},
           icon: const Icon(Icons.grid_view, size: 20, color: Colors.black),
@@ -71,7 +70,7 @@ class CustomAppBar extends StatelessWidget {
         IconButton(
           style: IconButton.styleFrom(
             backgroundColor: Colors.grey[200],
-            padding: EdgeInsets.all(10),
+            padding: const EdgeInsets.all(10),
           ),
           onPressed: () {},
           icon: const Icon(
@@ -85,6 +84,7 @@ class CustomAppBar extends StatelessWidget {
   }
 }
 
+// Category Buttons
 Widget _categoryButtons() {
   final categories = [
     "Sculpture",
@@ -116,6 +116,7 @@ Widget _categoryButtons() {
   );
 }
 
+// Section title
 Widget _sectionTitle(String title) {
   return Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -129,13 +130,9 @@ Widget _sectionTitle(String title) {
   );
 }
 
+// Artists List
 Widget _artistsList() {
   final sampleArtists = [
-    "https://randomuser.me/api/portraits/women/1.jpg",
-    "https://randomuser.me/api/portraits/men/2.jpg",
-    "https://randomuser.me/api/portraits/women/3.jpg",
-    "https://randomuser.me/api/portraits/men/4.jpg",
-    "https://randomuser.me/api/portraits/women/5.jpg",
     "https://randomuser.me/api/portraits/women/1.jpg",
     "https://randomuser.me/api/portraits/men/2.jpg",
     "https://randomuser.me/api/portraits/women/3.jpg",
@@ -160,6 +157,7 @@ Widget _artistsList() {
   );
 }
 
+// Artworks Grid
 Widget _artworksGrid(List<Map<String, dynamic>> artworks) {
   return GridView.builder(
     shrinkWrap: true,
@@ -216,7 +214,6 @@ Widget _artworksGrid(List<Map<String, dynamic>> artworks) {
                 ],
               ),
             ),
-
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Column(
@@ -245,24 +242,13 @@ Widget _artworksGrid(List<Map<String, dynamic>> artworks) {
   );
 }
 
+// Sample trending arts
 final sampleTrendingArts = [
   {
     'title': 'Blue Eye',
     'artist': 'John Doe',
     'imageUrl': 'assests/images/blue eye (1).jpg',
     'price': 250,
-  },
-  {
-    'title': 'Sunset View',
-    'artist': 'Jane Smith',
-    'imageUrl': 'assests/images/man.jpg',
-    'price': 300,
-  },
-  {
-    'title': 'Sunset View',
-    'artist': 'Jane Smith',
-    'imageUrl': 'assests/images/man.jpg',
-    'price': 300,
   },
   {
     'title': 'Sunset View',
