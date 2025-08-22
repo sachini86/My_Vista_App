@@ -161,7 +161,7 @@ class _ArtistHomePageState extends State<ArtistHomePage> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const ProductDetailsPage1()),
+            MaterialPageRoute(builder: (_) => ProductDetailsPage1()),
           );
         },
         child: const Icon(Icons.add, color: Colors.black),
