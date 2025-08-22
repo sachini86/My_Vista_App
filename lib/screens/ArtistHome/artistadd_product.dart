@@ -5,6 +5,8 @@ import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vista/screens/ArtistHome/productdetails2.dart';
+import 'package:path/path.dart' as p;
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ProductDetailsPage1 extends StatefulWidget {
   const ProductDetailsPage1({super.key});
@@ -77,9 +79,17 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
 
   Future<String> _uploadFile(XFile file, String folder) async {
     File f = File(file.path);
-    final ref = FirebaseStorage.instance.ref('$folder/${file.name}');
-    await ref.putFile(f);
-    return await ref.getDownloadURL();
+
+    final uid = FirebaseAuth.instance.currentUser!.uid; // artist’s ID
+    final fileName = DateTime.now().millisecondsSinceEpoch.toString();
+
+    final ref = FirebaseStorage.instance.ref().child(
+      '$folder/$uid/$fileName${p.extension(file.path)}',
+    );
+
+    UploadTask uploadTask = ref.putFile(f);
+    final snapshot = await uploadTask.whenComplete(() {});
+    return await snapshot.ref.getDownloadURL();
   }
 
   Future<void> _submit() async {
@@ -104,6 +114,7 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
 
         // Save to Firestore
         await FirebaseFirestore.instance.collection('artworks').add({
+          'artistId': FirebaseAuth.instance.currentUser!.uid,
           'title': _titleController.text,
           'artistName': _artistController.text,
           'description': _descriptionController.text,
