@@ -7,8 +7,10 @@ import 'package:signature/signature.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:pdf/pdf.dart';
 import 'package:flutter/services.dart';
+import 'dart:developer';
+import 'package:pdf/pdf.dart';
+import 'package:file_saver/file_saver.dart';
 
 class ProductDetailPage2 extends StatefulWidget {
   final XFile artwork;
@@ -55,7 +57,6 @@ class _ProductDetailPage2State extends State<ProductDetailPage2> {
 
   XFile? _nicFront;
   XFile? _nicBack;
-  ByteData? _signatureData;
 
   final _picker = ImagePicker();
   final _signatureKey = GlobalKey<SignatureState>();
@@ -91,6 +92,7 @@ class _ProductDetailPage2State extends State<ProductDetailPage2> {
 
   Future<void> _submitAll() async {
     if (!_formKey.currentState!.validate()) return;
+
     if (!_agreeLegal) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('You must agree to legal terms')),
@@ -98,86 +100,126 @@ class _ProductDetailPage2State extends State<ProductDetailPage2> {
       return;
     }
 
-    // 1️⃣ Upload artwork & additional files
-    String artworkUrl = await _uploadFile(widget.artwork, 'artworks');
-    List<String> additionalUrls = [];
-    for (var file in widget.additionalFiles) {
-      additionalUrls.add(await _uploadFile(file, 'artworks_additional'));
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('User not signed in')));
+      return;
     }
 
-    String? nicFrontUrl;
-    String? nicBackUrl;
-    if (_nicFront != null) nicFrontUrl = await _uploadFile(_nicFront!, 'nic');
-    if (_nicBack != null) nicBackUrl = await _uploadFile(_nicBack!, 'nic');
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
 
-    // 2️⃣ Convert signature to File & upload
-    String? signatureUrl;
-    if (_signatureData != null) {
+    try {
+      log("Uploading artwork...");
+      final artworkUrl = await _uploadFile(widget.artwork, 'artworks');
+
+      log("Uploading additional files...");
+      List<String> additionalUrls = [];
+      for (var file in widget.additionalFiles) {
+        additionalUrls.add(await _uploadFile(file, 'artworks_additional'));
+      }
+
+      log("Uploading NIC images...");
+      String? nicFrontUrl;
+      String? nicBackUrl;
+      if (_nicFront != null) nicFrontUrl = await _uploadFile(_nicFront!, 'nic');
+      if (_nicBack != null) nicBackUrl = await _uploadFile(_nicBack!, 'nic');
+
+      log("Processing signature...");
+      final signatureBytes = await _signatureController.toPngBytes();
+      if (signatureBytes == null || signatureBytes.isEmpty) {
+        if (!mounted) return;
+        Navigator.of(context).pop(); // hide loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please provide a digital signature.')),
+        );
+        return;
+      }
+
       final tempFile = File('${Directory.systemTemp.path}/signature.png');
-      await tempFile.writeAsBytes(_signatureData!.buffer.asUint8List());
+      await tempFile.writeAsBytes(signatureBytes);
 
-      final user = FirebaseAuth.instance.currentUser;
-      final ref = FirebaseStorage.instance.ref().child(
-        "signatures/${user!.uid}.png",
+      final signatureRef = FirebaseStorage.instance.ref().child(
+        "signatures/${user.uid}.png",
       );
+      await signatureRef.putFile(tempFile);
+      final signatureUrl = await signatureRef.getDownloadURL();
 
-      await ref.putFile(tempFile);
-      signatureUrl = await ref.getDownloadURL();
-    }
+      log("Parsing numeric fields...");
+      final price = double.tryParse(_priceController.text) ?? 0;
+      final shippingFee = double.tryParse(_shippingController.text) ?? 0;
+      final quantity = int.tryParse(_quantityController.text) ?? 0;
+      final discount = double.tryParse(_discountController.text) ?? 0;
 
-    // 3️⃣ Save artwork details to Firestore
-    await FirebaseFirestore.instance.collection('artworks').add({
-      'title': widget.title,
-      'artistName': widget.artistName,
-      'description': widget.description,
-      'category': widget.category,
-      'style': widget.style,
-      'material': widget.material,
-      'size': widget.sizes,
-      'yearCreated': widget.yearCreated,
-      'price': double.parse(_priceController.text),
-      'currency': _selectedCurrency,
-      'discount': _discountController.text.isEmpty
-          ? 0
-          : double.parse(_discountController.text),
-      'quantity': int.parse(_quantityController.text),
-      'shippingFee': double.parse(_shippingController.text),
-      'artworkUrl': artworkUrl,
-      'additionalFiles': additionalUrls,
-      'nicFrontUrl': nicFrontUrl,
-      'nicBackUrl': nicBackUrl,
-      'signatureUrl': signatureUrl,
-      'agreeLegal': _agreeLegal,
-      'createdAt': Timestamp.now(),
-    });
+      log("Saving artwork to Firestore...");
+      await FirebaseFirestore.instance.collection('artworks').add({
+        'title': widget.title,
+        'artistName': widget.artistName,
+        'description': widget.description,
+        'category': widget.category,
+        'style': widget.style,
+        'material': widget.material,
+        'size': widget.sizes,
+        'yearCreated': widget.yearCreated,
+        'price': price,
+        'currency': _selectedCurrency,
+        'discount': discount,
+        'quantity': quantity,
+        'shippingFee': shippingFee,
+        'artworkUrl': artworkUrl,
+        'additionalFiles': additionalUrls,
+        'nicFrontUrl': nicFrontUrl,
+        'nicBackUrl': nicBackUrl,
+        'signatureUrl': signatureUrl,
+        'agreeLegal': _agreeLegal,
+        'createdAt': Timestamp.now(),
+      });
 
-    if (!mounted) return;
-
-    // 4️⃣ Navigate to PreviewAgreementPage if signature exists
-    if (signatureUrl != null) {
-      final user = FirebaseAuth.instance.currentUser;
+      log("Fetching artist info...");
       final userDoc = await FirebaseFirestore.instance
           .collection("artists")
-          .doc(user!.uid)
+          .doc(user.uid)
           .get();
 
-      final userName = userDoc["name"];
-      final userEmail = userDoc["email"];
+      String userName = "Unknown Artist";
+      String userEmail = user.email ?? "unknown@email.com";
+
+      if (userDoc.exists) {
+        final data = userDoc.data();
+        if (data != null) {
+          userName = data["name"] ?? userName;
+          userEmail = data["email"] ?? userEmail;
+        }
+      } else {
+        log("⚠️ No artist document found for uid: ${user.uid}");
+      }
+
       if (!mounted) return;
+
+      log("Navigating to PreviewAgreementPage...");
+      Navigator.of(context).pop(); // hide loading
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => PreviewAgreementPage(
-            name: userName,
+            name: widget.artistName,
             email: userEmail,
-            signatureUrl: signatureUrl!,
+            signatureUrl: signatureUrl,
           ),
         ),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please provide a digital signature.')),
-      );
+    } catch (e) {
+      Navigator.of(context).pop(); // hide loading
+      log("Error in _submitAll: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error submitting artwork: $e")));
     }
   }
 
@@ -235,7 +277,7 @@ class _ProductDetailPage2State extends State<ProductDetailPage2> {
                     flex: 1,
                     child: DropdownButtonFormField<String>(
                       value: _selectedCurrency,
-                      items: ['USD', 'LKR', 'EUR']
+                      items: ['USD', 'LKR', 'EUR', 'INR']
                           .map(
                             (e) => DropdownMenuItem(value: e, child: Text(e)),
                           )
@@ -557,9 +599,6 @@ class _ProductDetailPage2State extends State<ProductDetailPage2> {
                   TextButton(
                     onPressed: () {
                       _signatureController.clear();
-                      setState(() {
-                        _signatureData = null;
-                      });
                     },
                     child: const Text('Clear'),
                   ),
@@ -607,11 +646,14 @@ class PreviewAgreementPage extends StatefulWidget {
 class _PreviewAgreementPageState extends State<PreviewAgreementPage> {
   final pdf = pw.Document();
 
+  // Generate PDF
   Future<Uint8List> _generatePdf() async {
     final netImage = await networkImage(widget.signatureUrl);
 
     pdf.addPage(
       pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(20),
         build: (pw.Context context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
@@ -622,18 +664,25 @@ class _PreviewAgreementPageState extends State<PreviewAgreementPage> {
             pw.SizedBox(height: 20),
             pw.Text(
               "I hereby certify that all information provided in this form, including personal, artwork, and identification details, is true, accurate, and complete to the best of my knowledge. I understand that submitting false, misleading, or fraudulent information may result in legal action, including but not limited to civil or criminal liability.\n\n"
-              "By signing below digitally, I acknowledge and agree to this certification and accept full responsibility for the accuracy of the information provided.",
+              "By signing below digitally, I, ${widget.name}, acknowledge and agree to this certification and accept full responsibility for the accuracy of the information provided.",
               style: const pw.TextStyle(fontSize: 12),
+              textAlign: pw.TextAlign.justify,
             ),
             pw.SizedBox(height: 30),
-            pw.Text("Name: ${widget.name}", style: pw.TextStyle(fontSize: 12)),
+            pw.Text(
+              "Name: ${widget.name}",
+              style: const pw.TextStyle(fontSize: 12),
+            ),
             pw.Text(
               "Email: ${widget.email}",
-              style: pw.TextStyle(fontSize: 12),
+              style: const pw.TextStyle(fontSize: 12),
             ),
             pw.SizedBox(height: 20),
-            pw.Text("Digital Signature:", style: pw.TextStyle(fontSize: 12)),
-            pw.Image(netImage, height: 80),
+            pw.Text(
+              "Digital Signature:",
+              style: const pw.TextStyle(fontSize: 12),
+            ),
+            pw.Image(netImage, height: 50),
           ],
         ),
       ),
@@ -642,6 +691,7 @@ class _PreviewAgreementPageState extends State<PreviewAgreementPage> {
     return pdf.save();
   }
 
+  // Upload PDF to Firebase
   Future<void> _uploadPdfToFirebase(Uint8List pdfBytes) async {
     final storageRef = FirebaseStorage.instance.ref().child(
       "agreements/${widget.email}_agreement.pdf",
@@ -664,25 +714,58 @@ class _PreviewAgreementPageState extends State<PreviewAgreementPage> {
         });
   }
 
-  void _downloadPdf() async {
-    final pdfBytes = await _generatePdf();
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdfBytes,
-    );
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("PDF downloaded")));
-    await _uploadPdfToFirebase(pdfBytes);
+  // Download PDF to device with success message
+  // For letting user choose download location
+
+  Future<void> _downloadPdf() async {
+    try {
+      // 1️⃣ Generate PDF bytes
+      final pdfBytes = await _generatePdf();
+
+      // 2️⃣ Let the user pick filename and save
+      final fileName = "Agreement_${widget.name}.pdf";
+
+      // Using FileSaver, pass parameters as named arguments
+      final result = await FileSaver.instance.saveFile(
+        name: fileName,
+        bytes: pdfBytes,
+        mimeType: MimeType.pdf,
+      );
+
+      // 3️⃣ Only show success if the user actually saved it
+      if (result.isNotEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("✅ Agreement downloaded successfully!"),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+
+      // 4️⃣ Upload to Firebase for admin/legal use
+      await _uploadPdfToFirebase(pdfBytes);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("❌ Error downloading PDF: $e"),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
+  // Share PDF
   void _sharePdf() async {
     final pdfBytes = await _generatePdf();
     await Printing.sharePdf(bytes: pdfBytes, filename: "Agreement.pdf");
+
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text("PDF ready to share")));
+
     await _uploadPdfToFirebase(pdfBytes);
   }
 
@@ -699,29 +782,62 @@ class _PreviewAgreementPageState extends State<PreviewAgreementPage> {
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
               "Agreement & Certification of Truthfulness",
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
-            const SizedBox(height: 10),
-            const Text(
-              "I hereby certify that all information provided in this form, including personal, artwork, and identification details, is true, accurate, and complete to the best of my knowledge. I understand that submitting false, misleading, or fraudulent information may result in legal action, including but not limited to civil or criminal liability.\n\n"
-              "By signing below digitally, I acknowledge and agree to this certification and accept full responsibility for the accuracy of the information provided.",
+            const SizedBox(height: 30),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                  ), // Letter-style margin
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "I hereby certify that all information provided in this form, including personal, artwork, and identification details, is true, accurate, and complete to the best of my knowledge. I understand that submitting false, misleading, or fraudulent information may result in legal action, including but not limited to civil or criminal liability.\n\n"
+                        "By signing below digitally, I, ${widget.name}, acknowledge and agree to this certification and accept full responsibility for the accuracy of the information provided.",
+                        textAlign: TextAlign.justify,
+                        style: const TextStyle(fontSize: 14, height: 1.5),
+                      ),
+                      const SizedBox(height: 30),
+                      Text(
+                        "Name: ${widget.name}",
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      Text(
+                        "Email: ${widget.email}",
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(height: 10),
+                      widget.signatureUrl.isNotEmpty
+                          ? Image.network(
+                              widget.signatureUrl,
+                              height: 50,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Text("Signature not available"),
+                            )
+                          : const Text("Signature not available"),
+                    ],
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 20),
-            Text("Name: ${widget.name}"),
-            Text("Email: ${widget.email}"),
-            const SizedBox(height: 10),
-            Image.network(widget.signatureUrl, height: 80),
-            const Spacer(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 ElevatedButton.icon(
                   onPressed: _downloadPdf,
-                  icon: const Icon(Icons.download),
-                  label: const Text("Download"),
+                  icon: const Icon(Icons.download, color: Colors.white),
+                  label: const Text(
+                    "Download",
+                    style: TextStyle(color: Colors.white),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xff930909),
                     padding: const EdgeInsets.symmetric(
@@ -732,8 +848,11 @@ class _PreviewAgreementPageState extends State<PreviewAgreementPage> {
                 ),
                 ElevatedButton.icon(
                   onPressed: _sharePdf,
-                  icon: const Icon(Icons.share),
-                  label: const Text("Share"),
+                  icon: const Icon(Icons.share, color: Colors.white),
+                  label: const Text(
+                    "Share",
+                    style: TextStyle(color: Colors.white),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xff930909),
                     padding: const EdgeInsets.symmetric(
