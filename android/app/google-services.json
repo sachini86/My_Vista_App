@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "464682754704",
+    "project_id": "vista-app-c5634",
+    "storage_bucket": "vista-app-c5634.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:464682754704:android:31bd87f1b13c0a8db2ee15",
+        "android_client_info": {
+          "package_name": "com.example.vista"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "464682754704-kvhv0s4cto9fhgmuk5k23gceuk2b7gd8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.vista",
+            "certificate_hash": "1753f696726b03d78c05d378b19db332ee8b8e09"
+          }
+        },
+        {
+          "client_id": "464682754704-f90l6i5uchs687bvkhqromf37lbbtr8l.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCYjIgmdUEJPkDzfOnmVxkRQZZqMDBLDkg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "464682754704-f90l6i5uchs687bvkhqromf37lbbtr8l.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
