@@ -18,7 +18,7 @@ class _RoundedBottomnavbarState extends State<RoundedBottomnavbar> {
   // List of screens
   final List<Widget> _screens = [
     const CustomerHomePage(),
-    const CustomChat(),
+    const CustomChat(artistId: "someArtistId", artistName: "Artist Name"),
     const CustomFavourite(),
     const CustomCart(),
     const CustomProfile(),

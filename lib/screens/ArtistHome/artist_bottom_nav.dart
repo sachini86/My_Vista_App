@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:my_vista/screens/ArtistHome/artisthomepage.dart';
-import 'package:my_vista/screens/ArtistChat/artist_chat_temp.dart';
+import 'package:my_vista/screens/ArtistChat/artist_chatlist.dart';
 import 'package:my_vista/screens/ArtistOrders/artist_orders_temp.dart';
 import 'package:my_vista/screens/ArtistProfile/artist_profile_temp.dart';
 import 'package:my_vista/screens/ArtistHome/artistadd_product.dart';
@@ -19,7 +19,7 @@ class _ArtistRoundedBottomNavbarState extends State<ArtistRoundedBottomNavbar> {
   // List of screens for tabs
   final List<Widget> _screens = [
     const ArtistHomePage(),
-    const ArtistChat(),
+    const ArtistChatList(),
     const ArtistOrders(),
     const ArtistProfile(),
   ];
@@ -52,10 +52,17 @@ class _ArtistRoundedBottomNavbarState extends State<ArtistRoundedBottomNavbar> {
             )
           : null,
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          borderRadius: BorderRadius.only(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(20),
             topRight: Radius.circular(20),
+          ),
+          border: Border(
+            top: BorderSide(
+              color: Colors.black54, // color of the border
+              width: 1, // thickness of the border
+            ),
           ),
         ),
         child: BottomAppBar(

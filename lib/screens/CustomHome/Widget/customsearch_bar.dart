@@ -28,11 +28,6 @@ class CustomSearchBar extends StatelessWidget {
               ),
             ),
           ),
-          Container(height: 25, width: 1.5, color: Colors.grey),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.tune, color: Colors.grey),
-          ),
         ],
       ),
     );
