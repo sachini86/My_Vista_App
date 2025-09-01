@@ -368,8 +368,10 @@ class _ProductDetailPage2State extends State<ProductDetailPage2> {
               'nicBackUrl': nicBackUrl,
               'signatureUrl': signatureUrl,
               'agreeLegal': _agreeLegal,
-              'createdAt': Timestamp.now(),
+              'createdAt': FieldValue.serverTimestamp(),
               'userId': user.uid,
+              'published': true,
+              'featured': false,
             });
         log("✅ Artwork document created: ${docRef.id}");
       } catch (e) {

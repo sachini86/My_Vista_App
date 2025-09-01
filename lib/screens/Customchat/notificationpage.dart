@@ -2,18 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NotificationsPage extends StatelessWidget {
-  final String userId;
+  final String? userId; // make nullable
   const NotificationsPage({super.key, required this.userId});
 
   @override
   Widget build(BuildContext context) {
+    if (userId == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Notifications')),
+        body: const Center(
+          child: Text('You must be logged in to see notifications'),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Notifications')),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('notifications')
+            .collection('users')
             .doc(userId)
-            .collection('messages')
+            .collection('notifications')
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
@@ -38,9 +47,9 @@ class NotificationsPage extends StatelessWidget {
                     : null,
                 onTap: () {
                   FirebaseFirestore.instance
-                      .collection('notifications')
+                      .collection('users')
                       .doc(userId)
-                      .collection('messages')
+                      .collection('notifications')
                       .doc(docs[index].id)
                       .update({'read': true});
                 },

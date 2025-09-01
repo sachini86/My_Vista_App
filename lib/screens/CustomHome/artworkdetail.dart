@@ -22,7 +22,7 @@ class ArtworkDetailPage extends StatelessWidget {
     final price = (data['price'] ?? 0).toDouble();
 
     return Scaffold(
-      appBar: AppBar(title: Text(data['title'] ?? 'Artwork')),
+      appBar: AppBar(title: Text(data['title'] ?? 'artworks')),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

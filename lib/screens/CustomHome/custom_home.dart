@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:my_vista/screens/CustomHome/artworkdetail.dart';
 import 'package:my_vista/screens/Customchat/notificationpage.dart';
+import 'package:my_vista/screens/ArtistChat/artist_chat_page.dart';
 
 class CustomerHomePage extends StatefulWidget {
   const CustomerHomePage({super.key});
@@ -72,22 +73,23 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
               ),
             ),
 
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('notifications')
-                  .doc(_user!.uid)
-                  .collection('messages')
-                  .where('read', isEqualTo: false)
-                  .snapshots(),
+            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _user != null
+                  ? FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(_user!.uid)
+                        .collection('notifications')
+                        .where('read', isEqualTo: false)
+                        .snapshots()
+                  : null,
               builder: (context, snapshot) {
-                int unreadCount = snapshot.hasData
-                    ? snapshot.data!.docs.length
-                    : 0;
+                int unreadCount = snapshot.data?.docs.length ?? 0;
 
                 return Stack(
                   children: [
                     IconButton(
                       onPressed: () {
+                        if (_user == null) return;
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -138,17 +140,23 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
           onRefresh: () async => setState(() {}),
           child: CustomScrollView(
             slivers: [
+              SliverToBoxAdapter(child: const SizedBox(height: 5)),
               SliverToBoxAdapter(child: _buildSearchBar()),
-              SliverToBoxAdapter(child: const SizedBox(height: 8)),
+              SliverToBoxAdapter(child: const SizedBox(height: 15)),
               SliverToBoxAdapter(child: _buildAdsCarousel()),
-              SliverToBoxAdapter(child: const SizedBox(height: 8)),
-              SliverToBoxAdapter(child: _buildTagSection()),
-              SliverToBoxAdapter(child: const SizedBox(height: 12)),
+              SliverToBoxAdapter(child: const SizedBox(height: 20)),
+              SliverToBoxAdapter(child: _categoryButtons()),
+              SliverToBoxAdapter(child: const SizedBox(height: 30)),
               SliverToBoxAdapter(child: _sectionTitle('Artists')),
-              SliverToBoxAdapter(child: _buildArtistStrip()),
+              SliverToBoxAdapter(
+                child: _buildArtistStrip(
+                  context,
+                  FirebaseAuth.instance.currentUser,
+                ),
+              ),
               SliverToBoxAdapter(child: const SizedBox(height: 12)),
               SliverToBoxAdapter(child: _sectionTitle('Trending Arts')),
-              _buildArtworkGrid(),
+              _buildArtworkGrid(context, FirebaseAuth.instance.currentUser),
               const SliverToBoxAdapter(child: SizedBox(height: 80)),
             ],
           ),
@@ -187,7 +195,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
       height: 160,
       child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
-            .collection('artworks')
+            .collectionGroup('artworks')
             .where('featured', isEqualTo: true)
             .snapshots(),
         builder: (context, snapshot) {
@@ -298,46 +306,37 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
   }
 
   // Tag section as images (collection: tags {label, imageUrl})
-  Widget _buildTagSection() {
-    return SizedBox(
-      height: 56,
-      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('tags')
-            .orderBy('order', descending: false)
-            .snapshots(),
-        builder: (context, snapshot) {
-          final tags = snapshot.data?.docs ?? [];
-          return ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            scrollDirection: Axis.horizontal,
-            itemCount: tags.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (context, i) {
-              final t = tags[i].data();
-              return GestureDetector(
-                onTap: () {
-                  _searchController.text = t['label'] ?? '';
-                  setState(() {});
-                },
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundImage: NetworkImage(t['imageUrl'] ?? ''),
-                      backgroundColor: const Color(0xFFF0DADA),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      (t['label'] ?? '').toString(),
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
+  // Category Buttons
+  Widget _categoryButtons() {
+    final categories = [
+      "Sculpture",
+      "Paintings",
+      "Drawings",
+      "Photography",
+      "Sculpture",
+      "Drawings",
+      "Paintings",
+    ];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: categories
+            .map(
+              (cat) => Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
                 ),
-              );
-            },
-          );
-        },
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.black, width: 1.2),
+                ),
+                child: Text(cat, style: const TextStyle(fontSize: 14)),
+              ),
+            )
+            .toList(),
       ),
     );
   }
@@ -347,38 +346,69 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Text(
         title,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
       ),
     );
   }
 
   // Artists strip (collection: artists {displayName, photoUrl})
-  Widget _buildArtistStrip() {
+  Widget _buildArtistStrip(BuildContext context, User? currentUser) {
     return SizedBox(
       height: 98,
       child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
-            .collection('artists')
-            .orderBy('joinedAt', descending: true)
-            .limit(25)
+            .collection('users')
+            .where('role', isEqualTo: 'Artist')
             .snapshots(),
         builder: (context, snapshot) {
-          final artists = snapshot.data?.docs ?? [];
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final artists =
+              snapshot.data?.docs.where((doc) {
+                // Filter only users with role 'Artist', safely
+                final role = doc.data()['role']?.toString();
+                return role == 'Artist';
+              }).toList() ??
+              [];
+
+          if (artists.isEmpty) {
+            return const Center(child: Text('No artists found'));
+          }
+
           return ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             itemCount: artists.length,
             separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, i) {
-              final a = artists[i].data();
-              final artistId = artists[i].id;
+            itemBuilder: (context, index) {
+              final artistDoc = artists[index];
+              final artistData = artistDoc.data();
+              final artistId = artistDoc.id;
+
+              final profilePhoto =
+                  artistData['profilePhoto']?.toString().isNotEmpty == true
+                  ? artistData['profilePhoto'].toString()
+                  : ''; // placeholder
+
+              final name = artistData['name']?.toString().isNotEmpty == true
+                  ? artistData['name'].toString()
+                  : 'Artist';
+
               return Column(
                 children: [
                   GestureDetector(
-                    onTap: () => _onArtistTap(context, artistId, a),
+                    onTap: () {
+                      _onArtistTap(context, currentUser, artistId, artistData);
+                    },
                     child: CircleAvatar(
                       radius: 26,
-                      backgroundImage: NetworkImage(a['photoUrl'] ?? ''),
+                      backgroundImage: NetworkImage(profilePhoto),
                       backgroundColor: const Color(0xFFF0DADA),
                     ),
                   ),
@@ -386,7 +416,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                   SizedBox(
                     width: 70,
                     child: Text(
-                      (a['displayName'] ?? 'Artist'),
+                      name,
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -404,6 +434,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
 
   void _onArtistTap(
     BuildContext context,
+    User? currentUser,
     String artistId,
     Map<String, dynamic> a,
   ) {
@@ -422,10 +453,14 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
               children: [
                 ListTile(
                   leading: CircleAvatar(
-                    backgroundImage: NetworkImage(a['photoUrl'] ?? ''),
+                    backgroundImage:
+                        (a['profilePhoto'] != null &&
+                            a['profilePhoto'].toString().isNotEmpty)
+                        ? NetworkImage(a['profilePhoto'])
+                        : const AssetImage('assets/default_avatar.png')
+                              as ImageProvider,
                   ),
-                  title: Text(a['displayName'] ?? 'Artist'),
-                  subtitle: Text(a['bio'] ?? ''),
+                  title: Text(a['name'] ?? 'Artist'),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -435,10 +470,15 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                         icon: const Icon(Icons.chat_bubble_outline),
                         label: const Text('Chat'),
                         onPressed: () {
+                          if (currentUser == null) return;
                           Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Open chat (to implement)'),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ArtistChat(
+                                buyerId: artistId,
+                                buyerName: a['name'] ?? 'Artist',
+                              ),
                             ),
                           );
                         },
@@ -450,10 +490,10 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                         icon: const Icon(Icons.person_add_alt_1),
                         label: const Text('Follow'),
                         onPressed: () async {
-                          if (_user == null) return;
+                          if (currentUser == null) return;
                           await FirebaseFirestore.instance
                               .collection('users')
-                              .doc(_user!.uid)
+                              .doc(currentUser.uid)
                               .collection('following')
                               .doc(artistId)
                               .set({
@@ -465,7 +505,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  'Following ${a['displayName'] ?? ''}',
+                                  'Following ${a['name'] ?? 'Artist'}',
                                 ),
                               ),
                             );
@@ -482,174 +522,213 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
       },
     );
   }
-
-  // Artworks list/grid
-  SliverPadding _buildArtworkGrid() {
-    final q = _searchController.text.trim().toLowerCase();
-    final stream = FirebaseFirestore.instance
-        .collection('artworks')
-        .orderBy('createdAt', descending: true)
-        .snapshots();
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      sliver: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: stream,
-        builder: (context, snapshot) {
-          final items = (snapshot.data?.docs ?? [])
-              .where(
-                (d) =>
-                    q.isEmpty ||
-                    (d['title'] as String).toLowerCase().contains(q) ||
-                    (d['artistName'] as String? ?? '').toLowerCase().contains(
-                      q,
-                    ),
-              )
-              .toList();
-
-          return SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: .72,
-            ),
-            delegate: SliverChildBuilderDelegate(childCount: items.length, (
-              context,
-              i,
-            ) {
-              final doc = items[i];
-              final data = doc.data();
-              return _ArtworkCard(
-                artworkId: doc.id,
-                data: data,
-                onOpen: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        ArtworkDetailPage(artworkId: doc.id, data: data),
-                  ),
-                ),
-              );
-            }),
-          );
-        },
-      ),
-    );
-  }
 }
 
-class _ArtworkCard extends StatelessWidget {
-  const _ArtworkCard({
-    required this.artworkId,
+// Artworks list/grid
+// Move this inside the _CustomerHomePageState class (optional, but cleaner)
+
+SliverPadding _buildArtworkGrid(BuildContext context, User? user) {
+  return SliverPadding(
+    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+    sliver: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collectionGroup('artworks')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SliverToBoxAdapter(
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasError) {
+          return SliverToBoxAdapter(
+            child: Center(child: Text('Error: ${snapshot.error}')),
+          );
+        }
+
+        final items = snapshot.data?.docs ?? [];
+
+        if (items.isEmpty) {
+          return const SliverToBoxAdapter(
+            child: Center(child: Text('No artworks found')),
+          );
+        }
+
+        return SliverGrid(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: .69,
+          ),
+          delegate: SliverChildBuilderDelegate((context, i) {
+            final doc = items[i];
+            final data = doc.data();
+            final price = (data['price'] ?? 0).toDouble();
+
+            return ArtworkCard(
+              artworkId: doc.id,
+              data: data,
+              user: user,
+              price: price,
+              onOpen: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      ArtworkDetailPage(artworkId: doc.id, data: data),
+                ),
+              ),
+            );
+          }, childCount: items.length),
+        );
+      },
+    ),
+  );
+}
+
+class ArtworkCard extends StatelessWidget {
+  final Map<String, dynamic> data;
+  final String artworkId;
+  final User? user;
+  final double? price;
+  final VoidCallback onOpen;
+
+  const ArtworkCard({
+    super.key,
     required this.data,
+    required this.artworkId,
+    required this.user,
+    required this.price,
     required this.onOpen,
   });
 
-  final String artworkId;
-  final Map<String, dynamic> data;
-  final VoidCallback onOpen;
-
-  User? get _user => FirebaseAuth.instance.currentUser;
-
   @override
   Widget build(BuildContext context) {
-    final price = (data['price'] ?? 0).toDouble();
+    final double price = (data['price'] ?? 0).toDouble();
+    final String currency = data['currency'] ?? 'US\$';
+    final String artistName = data['artistName'] ?? '';
+    final String title = data['title'] ?? 'Artwork';
+
     return GestureDetector(
       onTap: onOpen,
       child: Card(
-        elevation: 1,
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Artwork image
             AspectRatio(
-              aspectRatio: 1.2,
-              child: Image.network(data['imageUrl'] ?? '', fit: BoxFit.cover),
+              aspectRatio: 1.4,
+              child: Image.network(
+                data['artworkUrl'] ?? '',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.image, size: 50, color: Colors.grey),
+              ),
             ),
+
+            // Favorite & Cart Row
             Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  IconButton(
+                    constraints: const BoxConstraints(),
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.favorite_border, size: 22),
+                    onPressed: () async {
+                      if (user == null) return;
+                      final fav = FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(user!.uid)
+                          .collection('favorites')
+                          .doc(artworkId);
+                      await fav.set({
+                        'artworkId': artworkId,
+                        'title': title,
+                        'artistName': artistName,
+                        'price': price,
+                        'currency': currency,
+                        'artworkUrl': data['artworkUrl'],
+                        'addedAt': FieldValue.serverTimestamp(),
+                      });
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Added to favorites')),
+                        );
+                      }
+                    },
+                  ),
+                  IconButton(
+                    constraints: const BoxConstraints(),
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.add_shopping_cart, size: 22),
+                    onPressed: () async {
+                      if (user == null) return;
+                      final cart = FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(user!.uid)
+                          .collection('cart')
+                          .doc(artworkId);
+                      await cart.set({
+                        'artworkId': artworkId,
+                        'title': title,
+                        'artistName': artistName,
+                        'price': price,
+                        'currency': currency,
+                        'artworkUrl': data['artworkUrl'],
+                        'quantity': FieldValue.increment(1),
+                        'addedAt': FieldValue.serverTimestamp(),
+                      }, SetOptions(merge: true));
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Added to cart')),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            // Info section
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          data['title'] ?? 'Artwork',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      IconButton(
-                        constraints: const BoxConstraints(),
-                        padding: EdgeInsets.zero,
-                        icon: const Icon(Icons.favorite_border),
-                        onPressed: () async {
-                          if (_user == null) return;
-                          final fav = FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(_user!.uid)
-                              .collection('favorites')
-                              .doc(artworkId);
-                          await fav.set({
-                            'artworkId': artworkId,
-                            'title': data['title'],
-                            'artistName': data['artistName'],
-                            'price': price,
-                            'imageUrl': data['imageUrl'],
-                            'addedAt': FieldValue.serverTimestamp(),
-                          });
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Added to favorites'),
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                      IconButton(
-                        constraints: const BoxConstraints(),
-                        padding: EdgeInsets.zero,
-                        icon: const Icon(Icons.add_shopping_cart),
-                        onPressed: () async {
-                          if (_user == null) return;
-                          final cart = FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(_user!.uid)
-                              .collection('cart')
-                              .doc(artworkId);
-                          await cart.set({
-                            'artworkId': artworkId,
-                            'title': data['title'],
-                            'artistName': data['artistName'],
-                            'price': price,
-                            'imageUrl': data['imageUrl'],
-                            'qty': FieldValue.increment(1),
-                            'addedAt': FieldValue.serverTimestamp(),
-                          }, SetOptions(merge: true));
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Added to cart')),
-                            );
-                          }
-                        },
-                      ),
-                    ],
+                  // Title
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+
+                  // Artist name
+                  Text(
+                    artistName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13, color: Colors.black54),
                   ),
                   const SizedBox(height: 2),
+
+                  // Price + currency
                   Text(
-                    data['artistName'] ?? '',
-                    style: const TextStyle(fontSize: 12, color: Colors.black54),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'US\$ ${price.toStringAsFixed(2)}',
+                    '$currency ${price.toStringAsFixed(0)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
-                      fontSize: 13,
+                      fontSize: 14,
+                      color: Colors.black,
                     ),
                   ),
                 ],
