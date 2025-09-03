@@ -2,12 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:my_vista/screens/ArtistHome/productdetails2.dart';
-import 'package:path/path.dart' as p;
-import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:developer';
 
 class ProductDetailsPage1 extends StatefulWidget {
   const ProductDetailsPage1({super.key});
@@ -38,22 +33,25 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
 
   // Files
   XFile? _artwork;
-  XFile? _profilePhoto; // profile photo file
-
+  XFile? _profilePhoto;
   final List<XFile> _additionalFiles = [];
   final List<File> _thumbnails = [];
 
   final ImagePicker _picker = ImagePicker();
 
+  // Pick main artwork
   Future<void> _pickArtwork() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      setState(() {
-        _artwork = picked;
-      });
-    }
+    if (picked != null) setState(() => _artwork = picked);
   }
 
+  // Pick profile photo
+  Future<void> _pickProfilePhoto() async {
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) setState(() => _profilePhoto = picked);
+  }
+
+  // Pick additional images
   Future<void> _pickAdditionalFiles() async {
     final picked = await _picker.pickMultiImage();
     if (picked.isNotEmpty) {
@@ -65,6 +63,7 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
     }
   }
 
+  // Pick video and generate thumbnail
   Future<void> _pickVideo() async {
     final picked = await _picker.pickVideo(source: ImageSource.gallery);
     if (picked != null) {
@@ -75,44 +74,13 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
         maxHeight: 150,
         quality: 75,
       );
-      _thumbnails.add(File(thumb!));
+      if (thumb != null) _thumbnails.add(File(thumb));
       setState(() {});
     }
   }
 
-  Future<String> _uploadFile(XFile file, String folder) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      throw Exception('User not logged in');
-    }
-
-    File f = File(file.path);
-
-    final uid = user.uid; // artist’s ID
-    final fileName = DateTime.now().millisecondsSinceEpoch.toString();
-
-    final ref = FirebaseStorage.instance.ref().child(
-      '$folder/$uid/$fileName${p.extension(file.path)}',
-    );
-
-    UploadTask uploadTask = ref.putFile(f);
-    final snapshot = await uploadTask.whenComplete(() {});
-    return await snapshot.ref.getDownloadURL();
-  }
-
-  Future<void> _submit() async {
-    final user = FirebaseAuth.instance.currentUser;
-    log(
-      'Current user UID: ${user?.uid}',
-    ); // ✅ This will print UID in your debug console
-
-    if (user == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please login first')));
-      return;
-    }
-
+  // Submit: validate and navigate
+  void _submit() {
     if (!_formKey.currentState!.validate() || _artwork == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all required fields')),
@@ -120,85 +88,28 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
       return;
     }
 
-    try {
-      final uid = user.uid; // artistId
-
-      // Upload artwork
-      String artworkUrl = await _uploadFile(_artwork!, 'artworks/$uid');
-      log('Artwork uploaded: $artworkUrl');
-
-      // Upload additional files
-      List<String> additionalUrls = [];
-      for (var file in _additionalFiles) {
-        String url = await _uploadFile(file, 'artworks_additional/$uid');
-        additionalUrls.add(url);
-      }
-
-      // Upload profile photo
-      String? profilePhotoUrl;
-      if (_profilePhoto != null) {
-        profilePhotoUrl = await _uploadFile(
-          _profilePhoto!,
-          'profile_photos/$uid',
-        );
-      }
-
-      // Firestore write
-
-      final docRef = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('artworks')
-          .add({
-            'title': _titleController.text,
-            'artistName': _artistController.text,
-            'description': _descriptionController.text,
-            'category': _selectedCategory,
-            'style': _selectedStyle,
-            'material': _selectedMaterial,
-            'size': {
-              'height': {'value': _heightController.text, 'unit': _heightUnit},
-              'width': {'value': _widthController.text, 'unit': _widthUnit},
-              'depth': {'value': _depthController.text, 'unit': _depthUnit},
-            },
-            'yearCreated': _yearController.text,
-            'artworkUrl': artworkUrl,
-            'additionalFiles': additionalUrls,
-            'profilePhoto': profilePhotoUrl,
-            'createdAt': Timestamp.now(),
-          });
-
-      log('Artwork document saved: ${docRef.id}');
-
-      // Navigate
-      if (!mounted) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ProductDetailPage2(
-            artwork: _artwork!,
-            additionalFiles: _additionalFiles,
-            title: _titleController.text,
-            artistName: _artistController.text,
-            description: _descriptionController.text,
-            category: _selectedCategory ?? '',
-            style: _selectedStyle ?? '',
-            material: _selectedMaterial ?? '',
-            sizes: {
-              'height': {'value': _heightController.text, 'unit': _heightUnit},
-              'width': {'value': _widthController.text, 'unit': _widthUnit},
-              'depth': {'value': _depthController.text, 'unit': _depthUnit},
-            },
-            yearCreated: _yearController.text,
-          ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductDetailPage2(
+          artwork: _artwork!,
+          additionalFiles: _additionalFiles,
+          title: _titleController.text,
+          artistName: _artistController.text,
+          description: _descriptionController.text,
+          category: _selectedCategory ?? '',
+          style: _selectedStyle ?? '',
+          material: _selectedMaterial ?? '',
+          sizes: {
+            'height': {'value': _heightController.text, 'unit': _heightUnit},
+            'width': {'value': _widthController.text, 'unit': _widthUnit},
+            'depth': {'value': _depthController.text, 'unit': _depthUnit},
+          },
+          yearCreated: _yearController.text,
+          profilePhotoUrl: null,
         ),
-      );
-    } catch (e) {
-      log('Error saving to Firestore: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
-    }
+      ),
+    );
   }
 
   @override
@@ -217,7 +128,7 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
           key: _formKey,
           child: Column(
             children: [
-              // ✅ Profile photo circular avatar
+              // Profile photo
               Center(
                 child: Stack(
                   children: [
@@ -239,18 +150,9 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
                       right: 0,
                       bottom: 0,
                       child: InkWell(
-                        onTap: () async {
-                          if (_profilePhoto == null) {
-                            final picked = await _picker.pickImage(
-                              source: ImageSource.gallery,
-                            );
-                            if (picked != null) {
-                              setState(() => _profilePhoto = picked);
-                            }
-                          } else {
-                            setState(() => _profilePhoto = null);
-                          }
-                        },
+                        onTap: () => _profilePhoto == null
+                            ? _pickProfilePhoto()
+                            : setState(() => _profilePhoto = null),
                         child: CircleAvatar(
                           radius: 18,
                           backgroundColor: Colors.black,
@@ -278,18 +180,16 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
               ),
               const SizedBox(height: 16),
 
-              // Additional images/videos
+              // Additional files
               _buildUploadField(
                 label: 'Additional Images/Videos (optional)',
-                requiredField: false,
-                files: _additionalFiles,
                 thumbnails: _thumbnails,
-                onTap: () => _showPickOptions(),
+                files: _additionalFiles,
+                onTap: _showPickOptions,
               ),
               const SizedBox(height: 16),
-              // Profile photo upload
 
-              // Text inputs
+              // Text fields
               _buildTextField(_titleController, 'Artwork Title'),
               const SizedBox(height: 12),
               _buildTextField(_artistController, 'Artist Name'),
@@ -356,10 +256,8 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
                 keyboardType: TextInputType.number,
               ),
 
-              // Dimensions in separate rows
               const SizedBox(height: 5),
               _buildDimensionsField(),
-
               const SizedBox(height: 20),
 
               ElevatedButton(
@@ -380,6 +278,8 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
     );
   }
 
+  // -------------------- Helper Widgets --------------------
+
   Widget _buildTextField(
     TextEditingController controller,
     String label, {
@@ -394,7 +294,6 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
         keyboardType: keyboardType,
         validator: (val) {
           if (val == null || val.isEmpty) return 'Required';
-
           if (label == 'Year Created') {
             final number = int.tryParse(val);
             final currentYear = DateTime.now().year;
@@ -403,7 +302,6 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
             if (val.length != 4) return 'Enter valid year';
             if (number > currentYear) return 'Year cannot exceed $currentYear';
           }
-
           return null;
         },
         decoration: InputDecoration(
@@ -494,7 +392,6 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
     );
   }
 
-  /// helper widget for each dimension (Height/Width/Depth)
   Widget _dimensionInput({
     required TextEditingController controller,
     required String label,
@@ -505,13 +402,9 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
       controller: controller,
       keyboardType: TextInputType.number,
       validator: (val) {
-        if (val == null || val.isEmpty) {
-          return 'Required';
-        }
+        if (val == null || val.isEmpty) return 'Required';
         final num? number = num.tryParse(val);
-        if (number == null || number <= 0) {
-          return 'Enter positive';
-        }
+        if (number == null || number <= 0) return 'Enter positive';
         return null;
       },
       decoration: InputDecoration(
@@ -545,7 +438,6 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
     required VoidCallback onTap,
   }) {
     if (file != null) {
-      // Main artwork with removable button
       return Stack(
         children: [
           Container(
@@ -566,17 +458,14 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
             top: 4,
             child: CircleAvatar(
               radius: 12,
-              backgroundColor: Color(0xff930909),
+              backgroundColor: const Color(0xff930909),
               child: IconButton(
                 padding: EdgeInsets.zero,
                 icon: const Icon(Icons.close, color: Colors.white, size: 16),
                 onPressed: () {
                   setState(() {
-                    if (file == _artwork) {
-                      _artwork = null;
-                    } else if (file == _profilePhoto) {
-                      _profilePhoto = null;
-                    }
+                    if (file == _artwork) _artwork = null;
+                    if (file == _profilePhoto) _profilePhoto = null;
                   });
                 },
               ),
@@ -585,7 +474,6 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
         ],
       );
     } else if (thumbnails != null && thumbnails.isNotEmpty) {
-      // Additional files
       return SizedBox(
         height: 160,
         child: ListView.builder(
@@ -593,7 +481,6 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
           itemCount: thumbnails.length + 1,
           itemBuilder: (context, index) {
             if (index == thumbnails.length) {
-              // Add button
               return GestureDetector(
                 onTap: onTap,
                 child: Container(
@@ -623,7 +510,7 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
                   top: 8,
                   child: CircleAvatar(
                     radius: 12,
-                    backgroundColor: Color(0xff930909),
+                    backgroundColor: const Color(0xff930909),
                     child: IconButton(
                       padding: EdgeInsets.zero,
                       icon: const Icon(
@@ -646,7 +533,6 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
         ),
       );
     } else {
-      // Empty field
       return GestureDetector(
         onTap: onTap,
         child: Container(

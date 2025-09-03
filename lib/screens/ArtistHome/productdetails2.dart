@@ -273,6 +273,14 @@ class _ProductDetailPage2State extends State<ProductDetailPage2> {
         }
       }
 
+      // Use profile photo URL if provided from previous page
+      String? profilePhotoUrl = widget.profilePhotoUrl;
+      if (profilePhotoUrl != null) {
+        log("✅ Profile photo URL available: $profilePhotoUrl");
+      } else {
+        log("ℹ️ No profile photo provided.");
+      }
+
       // Upload NIC images (optional)
       String? nicFrontUrl;
       String? nicBackUrl;
@@ -364,6 +372,7 @@ class _ProductDetailPage2State extends State<ProductDetailPage2> {
               'shippingFee': shippingFee,
               'artworkUrl': artworkUrl,
               'additionalFiles': additionalUrls,
+              'profilePhoto': profilePhotoUrl,
               'nicFrontUrl': nicFrontUrl,
               'nicBackUrl': nicBackUrl,
               'signatureUrl': signatureUrl,
