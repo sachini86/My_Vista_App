@@ -30,6 +30,7 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
   String? _heightUnit = 'cm';
   String? _widthUnit = 'cm';
   String? _depthUnit = 'cm';
+  String? existingProfileUrl;
 
   // Files
   XFile? _artwork;
@@ -106,7 +107,7 @@ class _ProductDetailsPage1State extends State<ProductDetailsPage1> {
             'depth': {'value': _depthController.text, 'unit': _depthUnit},
           },
           yearCreated: _yearController.text,
-          profilePhotoUrl: null,
+          profilePhotoFile: _profilePhoto,
         ),
       ),
     );

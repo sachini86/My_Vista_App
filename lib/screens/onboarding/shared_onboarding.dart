@@ -24,7 +24,7 @@ class SharedOnboardingScreen extends StatelessWidget {
               children: [
                 // Logo
                 Image.asset(
-                  'assests/images/vist (2) (1).png',
+                  'assets/images/vist (2) (1).png',
                   width: 450, // Replace with your logo image
                 ),
                 const SizedBox(height: 5),

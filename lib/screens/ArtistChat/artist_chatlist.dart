@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:my_vista/screens/ArtistChat/artist_chat_page.dart';
+import 'artist_chat_page.dart';
 
 class ArtistChatList extends StatelessWidget {
   const ArtistChatList({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final artistId = FirebaseAuth.instance.currentUser!.uid;
+    final currentUid = FirebaseAuth.instance.currentUser!.uid;
 
     return Scaffold(
       appBar: AppBar(
@@ -18,8 +18,8 @@ class ArtistChatList extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('chats')
-            .where('participants', arrayContains: artistId)
-            .orderBy('timestamp', descending: true)
+            .where('participants', arrayContains: currentUid)
+            .orderBy('lastMessageTime', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
@@ -34,10 +34,10 @@ class ArtistChatList extends StatelessWidget {
             itemBuilder: (context, index) {
               final chat = chats[index];
               final participants = List<String>.from(chat['participants']);
-              final buyerId = participants.firstWhere((id) => id != artistId);
+              final buyerId = participants.firstWhere((id) => id != currentUid);
               final lastMessage = chat['lastMessage'] ?? '';
 
-              return FutureBuilder(
+              return FutureBuilder<DocumentSnapshot>(
                 future: FirebaseFirestore.instance
                     .collection('users')
                     .doc(buyerId)
@@ -45,7 +45,8 @@ class ArtistChatList extends StatelessWidget {
                 builder: (context, buyerSnapshot) {
                   if (!buyerSnapshot.hasData) return const SizedBox();
 
-                  final buyerData = buyerSnapshot.data!.data() ?? {};
+                  final buyerData =
+                      buyerSnapshot.data!.data() as Map<String, dynamic>? ?? {};
                   final buyerName = buyerData['name'] ?? 'Buyer';
                   final buyerImage = buyerData['profileImageUrl'];
 

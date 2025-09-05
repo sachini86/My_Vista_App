@@ -16,7 +16,7 @@ class FrontPage extends StatelessWidget {
             child: Container(
               alignment: Alignment.center,
               child: Image.asset(
-                "assests/images/bcgrnd new pic.png",
+                "assets/images/bcgrnd new pic.png",
                 width: 500, // ✅ Correct path and name
                 fit: BoxFit.cover,
               ), // Fills the screen
@@ -33,7 +33,7 @@ class FrontPage extends StatelessWidget {
                 Container(
                   alignment: Alignment.topCenter,
                   child: Image.asset(
-                    "assests/images/vist (2) (1).png",
+                    "assets/images/vist (2) (1).png",
                     width: 400,
                     height: 280,
                     fit: BoxFit.cover,

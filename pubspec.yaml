@@ -58,6 +58,8 @@ dependencies:
   flutter_svg: ^2.2.0
   cached_network_image_plus: ^0.0.5
   photo_view: ^0.15.0
+  carousel_slider: ^5.0.0
+  video_player: ^2.9.1
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -88,7 +90,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - assests/images/
+    - assets/images/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -104,17 +106,17 @@ flutter:
   fonts:
     - family: Nobile
       fonts:
-        - asset: assests\Fonts\Nobile\Nobile-Bold.ttf
+        - asset: assets\Fonts\Nobile\Nobile-Bold.ttf
           weight: 700
-        - asset: assests\Fonts\Nobile\Nobile-BoldItalic.ttf
+        - asset: assets\Fonts\Nobile\Nobile-BoldItalic.ttf
           weight: 700
-        - asset: assests\Fonts\Nobile\Nobile-Italic.ttf
+        - asset: assets\Fonts\Nobile\Nobile-Italic.ttf
           weight: 400
-        - asset: assests\Fonts\Nobile\Nobile-Medium.ttf
+        - asset: assets\Fonts\Nobile\Nobile-Medium.ttf
           weight: 500
-        - asset: assests\Fonts\Nobile\Nobile-MediumItalic.ttf
+        - asset: assets\Fonts\Nobile\Nobile-MediumItalic.ttf
           weight: 500
-        - asset: assests\Fonts\Nobile\Nobile-Regular.ttf
+        - asset: assets\Fonts\Nobile\Nobile-Regular.ttf
           weight: 400
         
   #

@@ -211,6 +211,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
         ),
       ),
 
+      // Favourites Icon
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async => setState(() {}),
@@ -279,23 +280,22 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
   // Replace _buildAdsCarousel() with this:
 
   final List<String> categories = [
-    'assests/images/painting.jpg',
-    'assests/images/sculpture.jpg',
-    'assests/images/digital art.jpg',
-    'assests/images/ceramic.jpg',
-    'assests/images/photography.jpg',
-    'assests/images/drawings.png',
-    'assests/images/crafts.jpg',
+    'assets/images/wolf.jpg',
+    'assets/images/hero-and-leander.jpg',
+    'assets/images/digital_artnew.jpg',
+    'assets/images/ceramicnew.jpg',
+    'assets/images/photography.jpg',
+    'assets/images/drawings.png',
+    'assets/images/crafts.jpg',
   ];
 
   Widget buildCategoryScroll(BuildContext context) {
     return SizedBox(
       height: 200,
-      width: 200, // single fixed rectangle height
+      width: double.infinity,
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
-          // Main rectangle with images
           PageView.builder(
             controller: _controller,
             itemCount: categories.length,
@@ -305,14 +305,36 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
               });
             },
             itemBuilder: (context, index) {
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.asset(categories[index], fit: BoxFit.cover),
+              return Container(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.grey[200], // background if image smaller
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    categories[index],
+                    fit: BoxFit.cover, // 👈 fills rectangle
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+                ),
               );
             },
           ),
 
-          // Circle indicators at bottom (inside the same rectangle)
+          // 🔘 Indicators
           Positioned(
             bottom: 10,
             child: Row(
@@ -579,44 +601,90 @@ class ArtworkCard extends StatelessWidget {
     final String artistName = data['artistName'] ?? '';
     final String title = data['title'] ?? 'Artwork';
 
-    return GestureDetector(
-      onTap: onOpen,
-      child: Card(
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Artwork image
-            AspectRatio(
-              aspectRatio: 1.4,
-              child: Image.network(
-                data['artworkUrl'] ?? '',
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    const Icon(Icons.image, size: 50, color: Colors.grey),
-              ),
-            ),
+    if (user == null) {
+      return GestureDetector(
+        onTap: onOpen,
+        child: _buildCard(context, title, artistName, price, currency, false),
+      );
+    }
 
-            // Favorite & Cart Row
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  IconButton(
-                    constraints: const BoxConstraints(),
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.favorite_border, size: 22),
-                    onPressed: () async {
-                      if (user == null) return;
-                      final fav = FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(user!.uid)
-                          .collection('favorites')
-                          .doc(artworkId);
-                      await fav.set({
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .collection('favourites')
+          .doc(artworkId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final isFav = snapshot.data?.exists ?? false;
+
+        return GestureDetector(
+          onTap: onOpen,
+          child: _buildCard(context, title, artistName, price, currency, isFav),
+        );
+      },
+    );
+  }
+
+  Widget _buildCard(
+    BuildContext context,
+    String title,
+    String artistName,
+    double price,
+    String currency,
+    bool isFav,
+  ) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Artwork image
+          AspectRatio(
+            aspectRatio: 1.4,
+            child: Image.network(
+              data['artworkUrl'] ?? '',
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) =>
+                  const Icon(Icons.image, size: 50, color: Colors.grey),
+            ),
+          ),
+
+          // Favorite & Cart Row
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                IconButton(
+                  constraints: const BoxConstraints(),
+                  padding: EdgeInsets.zero,
+                  icon: Icon(
+                    isFav ? Icons.favorite : Icons.favorite_border,
+                    size: 22,
+                    color: isFav ? Color(0xff930909) : null,
+                  ),
+                  onPressed: () async {
+                    if (user == null) return;
+                    final favRef = FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(user!.uid)
+                        .collection('favourites')
+                        .doc(artworkId);
+
+                    if (isFav) {
+                      await favRef.delete();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Removed from favorites'),
+                          ),
+                        );
+                      }
+                    } else {
+                      await favRef.set({
                         'artworkId': artworkId,
                         'title': title,
                         'artistName': artistName,
@@ -624,88 +692,84 @@ class ArtworkCard extends StatelessWidget {
                         'currency': currency,
                         'artworkUrl': data['artworkUrl'],
                         'addedAt': FieldValue.serverTimestamp(),
-                      });
+                      }, SetOptions(merge: true));
+
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Added to favorites')),
                         );
                       }
-                    },
-                  ),
-                  IconButton(
-                    constraints: const BoxConstraints(),
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.add_shopping_cart, size: 22),
-                    onPressed: () async {
-                      if (user == null) return;
-                      final cart = FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(user!.uid)
-                          .collection('cart')
-                          .doc(artworkId);
-                      await cart.set({
-                        'artworkId': artworkId,
-                        'title': title,
-                        'artistName': artistName,
-                        'price': price,
-                        'currency': currency,
-                        'artworkUrl': data['artworkUrl'],
-                        'quantity': FieldValue.increment(1),
-                        'addedAt': FieldValue.serverTimestamp(),
-                      }, SetOptions(merge: true));
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Added to cart')),
-                        );
-                      }
-                    },
-                  ),
-                ],
-              ),
+                    }
+                  },
+                ),
+                IconButton(
+                  constraints: const BoxConstraints(),
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.add_shopping_cart, size: 22),
+                  onPressed: () async {
+                    if (user == null) return;
+                    await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(user!.uid)
+                        .collection('cart')
+                        .doc(artworkId)
+                        .set({
+                          'artworkId': artworkId,
+                          'title': data['title'],
+                          'artistName': data['artistName'],
+                          'price': price,
+                          'currency': currency,
+                          'artworkUrl': data['artworkUrl'],
+                          'qty': FieldValue.increment(1),
+                          'addedAt': FieldValue.serverTimestamp(),
+                        }, SetOptions(merge: true));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Added to Cart')),
+                      );
+                    }
+                  },
+                ),
+              ],
             ),
+          ),
 
-            // Info section
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: Colors.black,
-                    ),
+          // Info section
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: Colors.black,
                   ),
-                  const SizedBox(height: 1),
-
-                  // Artist name
-                  Text(
-                    artistName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  artistName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$currency ${price.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: Colors.black,
                   ),
-                  const SizedBox(height: 2),
-
-                  // Price + currency
-                  Text(
-                    '$currency ${price.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: Colors.black,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

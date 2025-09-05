@@ -82,7 +82,7 @@ class _SuccessfulLoginPageState extends State<SuccessfulLoginPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset('assests/images/download.png', height: 140),
+              Image.asset('assets/images/download.png', height: 140),
               const SizedBox(height: 24),
               const Text(
                 'Congratulations!',

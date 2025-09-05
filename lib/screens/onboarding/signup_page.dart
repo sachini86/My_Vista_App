@@ -495,7 +495,7 @@ class _SignupPageState extends State<SignupPage> {
                     child: OutlinedButton.icon(
                       onPressed: _isLoading ? null : signInWithGoogle,
                       icon: Image.asset(
-                        "assests/images/google icon.png", // Fixed path
+                        "assets/images/google icon.png", // Fixed path
                         height: 20,
                       ),
                       label: const Text("Sign in with Google"),

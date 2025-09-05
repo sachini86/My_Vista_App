@@ -51,71 +51,74 @@ class _ArtistRoundedBottomNavbarState extends State<ArtistRoundedBottomNavbar> {
               child: const Icon(Icons.add, color: Colors.black),
             )
           : null,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-          border: Border(
-            top: BorderSide(
-              color: Colors.black54, // color of the border
-              width: 1, // thickness of the border
+      bottomNavigationBar: SizedBox(
+        height: 70, // reduced height
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+            border: Border(
+              top: BorderSide(
+                color: Colors.black54, // color of the border
+                width: 1, // thickness of the border
+              ),
             ),
           ),
-        ),
-        child: BottomAppBar(
-          elevation: 1,
-          color: Colors.white,
-          shape: const CircularNotchedRectangle(),
-          notchMargin: 10,
-          clipBehavior: Clip.antiAliasWithSaveLayer,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                onPressed: () => _onTabTapped(0),
-                icon: Icon(
-                  Icons.home_outlined,
-                  size: 30,
-                  color: _currentIndex == 0
-                      ? const Color(0xff930909)
-                      : Colors.black,
+          child: BottomAppBar(
+            elevation: 1,
+            color: Colors.white,
+            shape: const CircularNotchedRectangle(),
+            notchMargin: 10,
+            clipBehavior: Clip.antiAliasWithSaveLayer,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  onPressed: () => _onTabTapped(0),
+                  icon: Icon(
+                    Icons.home_outlined,
+                    size: 30,
+                    color: _currentIndex == 0
+                        ? const Color(0xff930909)
+                        : Colors.black,
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: () => _onTabTapped(1),
-                icon: Icon(
-                  Icons.chat_bubble_outline,
-                  size: 30,
-                  color: _currentIndex == 1
-                      ? const Color(0xff930909)
-                      : Colors.black,
+                IconButton(
+                  onPressed: () => _onTabTapped(1),
+                  icon: Icon(
+                    Icons.chat_bubble_outline,
+                    size: 30,
+                    color: _currentIndex == 1
+                        ? const Color(0xff930909)
+                        : Colors.black,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 40), // gap for FAB
-              IconButton(
-                onPressed: () => _onTabTapped(2),
-                icon: Icon(
-                  Icons.receipt_long_outlined,
-                  size: 30,
-                  color: _currentIndex == 2
-                      ? const Color(0xff930909)
-                      : Colors.black,
+                const SizedBox(width: 40), // gap for FAB
+                IconButton(
+                  onPressed: () => _onTabTapped(2),
+                  icon: Icon(
+                    Icons.receipt_long_outlined,
+                    size: 30,
+                    color: _currentIndex == 2
+                        ? const Color(0xff930909)
+                        : Colors.black,
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: () => _onTabTapped(3),
-                icon: Icon(
-                  Icons.person_outline,
-                  size: 30,
-                  color: _currentIndex == 3
-                      ? const Color(0xff930909)
-                      : Colors.black,
+                IconButton(
+                  onPressed: () => _onTabTapped(3),
+                  icon: Icon(
+                    Icons.person_outline,
+                    size: 30,
+                    color: _currentIndex == 3
+                        ? const Color(0xff930909)
+                        : Colors.black,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

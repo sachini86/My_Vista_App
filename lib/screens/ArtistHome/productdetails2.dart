@@ -24,6 +24,7 @@ import 'dart:developer';
 
 class ProductDetailPage2 extends StatefulWidget {
   final String? profilePhotoUrl;
+  final XFile? profilePhotoFile;
   final XFile artwork;
   final List<XFile> additionalFiles;
   final String title;
@@ -48,6 +49,7 @@ class ProductDetailPage2 extends StatefulWidget {
     required this.sizes,
     required this.yearCreated,
     this.profilePhotoUrl,
+    this.profilePhotoFile,
   });
 
   @override
@@ -274,11 +276,30 @@ class _ProductDetailPage2State extends State<ProductDetailPage2> {
       }
 
       // Use profile photo URL if provided from previous page
+      // Upload profile photo (new file OR reuse URL)
       String? profilePhotoUrl = widget.profilePhotoUrl;
-      if (profilePhotoUrl != null) {
-        log("✅ Profile photo URL available: $profilePhotoUrl");
-      } else {
-        log("ℹ️ No profile photo provided.");
+
+      if (widget.profilePhotoFile != null) {
+        try {
+          profilePhotoUrl = await _uploadXFile(
+            widget.profilePhotoFile!,
+            'profilePhotos',
+          );
+          log("✅ Profile photo uploaded: $profilePhotoUrl");
+
+          // Save profile photo at user-level document as well
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .set({
+                'profilePhoto': profilePhotoUrl,
+                'updatedAt': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true));
+
+          log("✅ Profile photo URL saved to Firestore user profile");
+        } catch (e) {
+          log("❌ Failed to upload profile photo: $e");
+        }
       }
 
       // Upload NIC images (optional)
