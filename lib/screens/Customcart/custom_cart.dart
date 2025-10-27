@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:my_vista/screens/Customcart/custom_checkoutdetails.dart';
 
 class CustomCart extends StatelessWidget {
   const CustomCart({super.key});
@@ -47,14 +48,15 @@ class CustomCart extends StatelessWidget {
 
                   final discountedPrice = price * (1 - discount / 100);
                   subtotal += discountedPrice * qty;
-                  shippingFee += shipping * qty;
                   saleDiscount += (price - discountedPrice) * qty;
+                  shippingFee += shipping * qty;
                 }
 
                 final netTotal = subtotal - saleDiscount + shippingFee;
 
                 return Column(
                   children: [
+                    // 🧺 Cart items list
                     Expanded(
                       child: ListView.builder(
                         padding: const EdgeInsets.all(16),
@@ -65,13 +67,6 @@ class CustomCart extends StatelessWidget {
                           final qty = (data['qty'] ?? 1).toInt();
                           final price = (data['price'] ?? 0).toDouble();
                           final discount = (data['discount'] ?? 0).toDouble();
-                          shippingFee +=
-                              (double.tryParse(
-                                    data['shippingFee']?.toString() ?? '0',
-                                  ) ??
-                                  0) *
-                              qty;
-
                           final discountedPrice = price * (1 - discount / 100);
                           final currency = (data['currency'] ?? "USD")
                               .toString();
@@ -84,6 +79,9 @@ class CustomCart extends StatelessWidget {
                               border: Border.all(
                                 color: Colors.grey.shade300,
                                 width: 1,
+                              ),
+                              borderRadius: BorderRadius.circular(
+                                8,
                               ), // ✅ only box
                             ),
                             child: Column(
@@ -264,6 +262,25 @@ class CustomCart extends StatelessWidget {
                             height: 40,
                             child: ElevatedButton(
                               onPressed: () {
+                                // Prepare a lightweight representation of cart items
+                                final cartItems = items.map((doc) {
+                                  final d = doc.data();
+                                  return CartItem(
+                                    id: d['productId'] ?? doc.id,
+                                    name: d['title'] ?? '',
+                                    quantity: (d['qty'] ?? 1).toInt(),
+                                    price: (d['price'] ?? 0).toDouble(),
+                                  );
+                                }).toList();
+
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        CheckoutPage(cartItems: cartItems),
+                                  ),
+                                );
+
                                 // Checkout logic
                               },
                               style: ElevatedButton.styleFrom(

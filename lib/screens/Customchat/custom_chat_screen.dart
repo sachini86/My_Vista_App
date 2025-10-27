@@ -2,15 +2,16 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:my_vista/Services/chat_service.dart';
+import 'chat_service.dart';
 
-class CustomChat extends StatefulWidget {
+class CustomChatScreen extends StatefulWidget {
   final String artistId;
   final String artistName;
   final String? artistProfileUrl;
 
-  const CustomChat({
+  const CustomChatScreen({
     super.key,
     required this.artistId,
     required this.artistName,
@@ -18,10 +19,10 @@ class CustomChat extends StatefulWidget {
   });
 
   @override
-  State<CustomChat> createState() => _CustomChatState();
+  State<CustomChatScreen> createState() => _CustomChatScreenState();
 }
 
-class _CustomChatState extends State<CustomChat> {
+class _CustomChatScreenState extends State<CustomChatScreen> {
   final User? _user = FirebaseAuth.instance.currentUser;
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -186,17 +187,19 @@ class _CustomChatState extends State<CustomChat> {
     if (text.isEmpty) return;
 
     if (editingMessageId != null) {
-      await ChatService().editMessage(
+      await ChatService.editMessage(
         chatId: _chatId,
         messageId: editingMessageId!,
         newText: text,
+        receiverId: widget.artistId,
       );
       setState(() => editingMessageId = null);
     } else {
-      await ChatService().sendMessage(
-        chatId: _chatId,
+      await ChatService.sendMessage(
         receiverId: widget.artistId,
-        message: text,
+        receiverName: widget.artistName,
+        receiverProfileUrl: widget.artistProfileUrl,
+        text: text,
       );
     }
     _messageController.clear();
@@ -206,9 +209,10 @@ class _CustomChatState extends State<CustomChat> {
     final picked = await _picker.pickImage(source: ImageSource.gallery);
     if (picked == null) return;
     File imageFile = File(picked.path);
-    await ChatService().sendImage(
-      chatId: _chatId,
+    await ChatService.sendImage(
       receiverId: widget.artistId,
+      receiverName: widget.artistName,
+      receiverProfileUrl: widget.artistProfileUrl,
       imageFile: imageFile,
     );
   }
@@ -236,9 +240,10 @@ class _CustomChatState extends State<CustomChat> {
                 title: const Text('Delete'),
                 onTap: () async {
                   Navigator.pop(context);
-                  await ChatService().deleteMessage(
+                  await ChatService.deleteMessage(
                     chatId: _chatId,
                     messageId: messageId,
+                    receiverId: widget.artistId,
                   );
                 },
               ),
