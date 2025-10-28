@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:my_vista/screens/BothChats/artistbuyer_chatpage.dart'; // Import the unified chat page
+import 'package:my_vista/screens/BothChats/artistbuyer_chatpage.dart';
 
 class ChatListPage extends StatefulWidget {
   const ChatListPage({super.key});
@@ -108,151 +108,169 @@ class _ChatListPageState extends State<ChatListPage> {
 
               if (otherUserId.isEmpty) return const SizedBox.shrink();
 
-              // Get other user's data from the chat document
-              final users = chatData['users'] as Map<String, dynamic>? ?? {};
-              final otherUserData =
-                  users[otherUserId] as Map<String, dynamic>? ?? {};
+              // Use FutureBuilder to fetch other user's data
+              return FutureBuilder<DocumentSnapshot>(
+                future: _firestore.collection('users').doc(otherUserId).get(),
+                builder: (context, userSnapshot) {
+                  // Default values
+                  String otherUserName = 'Unknown';
+                  String otherUserImage = '';
 
-              final otherUserName =
-                  otherUserData['name']?.toString() ?? 'Unknown';
-              final otherUserImage = otherUserData['image']?.toString() ?? '';
-              final lastMessage =
-                  chatData['lastMessage']?.toString() ?? 'No messages yet';
-              final lastTimestamp = chatData['lastTimestamp'] as Timestamp?;
-              final artworkTitle = chatData['artworkTitle']?.toString() ?? '';
-              final unreadCount =
-                  chatData['unreadCount_${currentUser.uid}'] ?? 0;
+                  if (userSnapshot.hasData && userSnapshot.data!.exists) {
+                    final userData =
+                        userSnapshot.data!.data() as Map<String, dynamic>?;
+                    if (userData != null) {
+                      otherUserName =
+                          userData['name']?.toString() ??
+                          userData['displayName']?.toString() ??
+                          'Unknown';
+                      otherUserImage =
+                          userData['profilePhoto']?.toString() ??
+                          userData['photoURL']?.toString() ??
+                          '';
+                    }
+                  }
 
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                leading: Stack(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xff930909),
-                          width: 2,
-                        ),
-                      ),
-                      child: CircleAvatar(
-                        radius: 28,
-                        backgroundColor: Colors.grey[200],
-                        backgroundImage: otherUserImage.isNotEmpty
-                            ? NetworkImage(otherUserImage)
-                            : null,
-                        child: otherUserImage.isEmpty
-                            ? const Icon(
-                                Icons.person,
-                                color: Color(0xff930909),
-                                size: 28,
-                              )
-                            : null,
-                      ),
+                  final lastMessage =
+                      chatData['lastMessage']?.toString() ?? 'No messages yet';
+                  final lastTimestamp = chatData['lastTimestamp'] as Timestamp?;
+                  final artworkTitle =
+                      chatData['artworkTitle']?.toString() ?? '';
+                  final unreadCount =
+                      chatData['unreadCount_${currentUser.uid}'] ?? 0;
+
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
                     ),
-                    if (unreadCount > 0)
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Color(0xff930909),
+                    leading: Stack(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 20,
-                            minHeight: 20,
-                          ),
-                          child: Text(
-                            unreadCount > 99 ? '99+' : '$unreadCount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                            border: Border.all(
+                              color: const Color(0xff930909),
+                              width: 2,
                             ),
-                            textAlign: TextAlign.center,
+                          ),
+                          child: CircleAvatar(
+                            radius: 28,
+                            backgroundColor: Colors.grey[200],
+                            backgroundImage: otherUserImage.isNotEmpty
+                                ? NetworkImage(otherUserImage)
+                                : null,
+                            child: otherUserImage.isEmpty
+                                ? const Icon(
+                                    Icons.person,
+                                    color: Color(0xff930909),
+                                    size: 28,
+                                  )
+                                : null,
                           ),
                         ),
-                      ),
-                  ],
-                ),
-                title: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        otherUserName,
-                        style: TextStyle(
-                          fontWeight: unreadCount > 0
-                              ? FontWeight.bold
-                              : FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                        if (unreadCount > 0)
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Color(0xff930909),
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 20,
+                                minHeight: 20,
+                              ),
+                              child: Text(
+                                unreadCount > 99 ? '99+' : '$unreadCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                    if (lastTimestamp != null)
-                      Text(
-                        _formatTimestamp(lastTimestamp),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: unreadCount > 0
-                              ? const Color(0xff930909)
-                              : Colors.grey[600],
-                          fontWeight: unreadCount > 0
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                    title: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            otherUserName,
+                            style: TextStyle(
+                              fontWeight: unreadCount > 0
+                                  ? FontWeight.bold
+                                  : FontWeight.w600,
+                              fontSize: 16,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                  ],
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (artworkTitle.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        artworkTitle,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xff930909),
-                          fontStyle: FontStyle.italic,
+                        if (lastTimestamp != null)
+                          Text(
+                            _formatTimestamp(lastTimestamp),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: unreadCount > 0
+                                  ? const Color(0xff930909)
+                                  : Colors.grey[600],
+                              fontWeight: unreadCount > 0
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                      ],
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (artworkTitle.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            artworkTitle,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xff930909),
+                              fontStyle: FontStyle.italic,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        const SizedBox(height: 4),
+                        Text(
+                          lastMessage,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: unreadCount > 0
+                                ? Colors.black87
+                                : Colors.grey[600],
+                            fontWeight: unreadCount > 0
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: 4),
-                    Text(
-                      lastMessage,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: unreadCount > 0
-                            ? Colors.black87
-                            : Colors.grey[600],
-                        fontWeight: unreadCount > 0
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      ],
                     ),
-                  ],
-                ),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ArtistBuyerChatPage(
-                        chatId: chatId,
-                        otherUserId: otherUserId,
-                        otherUserName: otherUserName,
-                        otherUserImage: otherUserImage,
-                        artworkTitle: artworkTitle,
-                      ),
-                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ArtistBuyerChatPage(
+                            chatId: chatId,
+                            otherUserId: otherUserId,
+                            otherUserName: otherUserName,
+                            otherUserImage: otherUserImage,
+                            artworkTitle: artworkTitle,
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
               );

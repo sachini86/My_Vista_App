@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:my_vista/screens/ArtistHome/artisthomepage.dart';
-import 'package:my_vista/screens/ArtistChat/artist_chatlist.dart';
+import 'package:my_vista/screens/BothChats/artistbuyer_chatlist.dart';
 import 'package:my_vista/screens/ArtistOrders/artist_orders_temp.dart';
 import 'package:my_vista/screens/ArtistProfile/artist_profile_temp.dart';
 import 'package:my_vista/screens/ArtistHome/artistadd_product.dart';
@@ -19,7 +19,7 @@ class _ArtistRoundedBottomNavbarState extends State<ArtistRoundedBottomNavbar> {
   // List of screens for tabs
   final List<Widget> _screens = [
     const ArtistHomePage(),
-    const ArtistChatList(),
+    const ChatListPage(),
     const ArtistOrders(),
     const ArtistProfile(),
   ];

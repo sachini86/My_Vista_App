@@ -38,8 +38,8 @@ class _ArtistBuyerChatPageState extends State<ArtistBuyerChatPage> {
   @override
   void initState() {
     super.initState();
-    _markMessagesAsRead();
     _initializeChat();
+    _markMessagesAsRead();
   }
 
   @override
@@ -62,13 +62,20 @@ class _ArtistBuyerChatPageState extends State<ArtistBuyerChatPage> {
 
       if (!chatDoc.exists) {
         // Get current user's data
-        final userDoc = await _firestore
+        final currentUserDoc = await _firestore
             .collection('users')
             .doc(user.uid)
             .get();
-        final userData = userDoc.data() ?? {};
+        final currentUserData = currentUserDoc.data() ?? {};
 
-        // Create initial chat document
+        // Get other user's data
+        final otherUserDoc = await _firestore
+            .collection('users')
+            .doc(widget.otherUserId)
+            .get();
+        final otherUserData = otherUserDoc.data() ?? {};
+
+        // Create initial chat document with both users' data
         await _firestore.collection('chats').doc(widget.chatId).set({
           'participants': [user.uid, widget.otherUserId],
           'createdAt': FieldValue.serverTimestamp(),
@@ -79,16 +86,63 @@ class _ArtistBuyerChatPageState extends State<ArtistBuyerChatPage> {
           'artworkTitle': widget.artworkTitle,
           'users': {
             user.uid: {
-              'name': userData['name'] ?? user.displayName ?? 'User',
-              'image': userData['profilePhoto'] ?? user.photoURL ?? '',
-              'role': userData['role'] ?? 'Customer',
+              'name': currentUserData['name'] ?? user.displayName ?? 'User',
+              'image': currentUserData['profilePhoto'] ?? user.photoURL ?? '',
+              'role': currentUserData['role'] ?? 'Customer',
             },
             widget.otherUserId: {
-              'name': widget.otherUserName,
-              'image': widget.otherUserImage,
+              'name': otherUserData['name'] ?? widget.otherUserName,
+              'image': otherUserData['profilePhoto'] ?? widget.otherUserImage,
+              'role': otherUserData['role'] ?? 'Artist',
             },
           },
         });
+      } else {
+        // Update user data if chat exists but user data might be incomplete
+        final chatData = chatDoc.data();
+        final users = (chatData?['users'] as Map<String, dynamic>?) ?? {};
+        bool needsUpdate = false;
+        Map<String, dynamic> updates = {};
+
+        // Check if current user's data needs to be updated
+        if (!users.containsKey(user.uid) || users[user.uid] == null) {
+          final currentUserDoc = await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .get();
+          final currentUserData = currentUserDoc.data() ?? {};
+
+          updates['users.${user.uid}'] = {
+            'name': currentUserData['name'] ?? user.displayName ?? 'User',
+            'image': currentUserData['profilePhoto'] ?? user.photoURL ?? '',
+            'role': currentUserData['role'] ?? 'Customer',
+          };
+          needsUpdate = true;
+        }
+
+        // Check if other user's data needs to be updated
+        if (!users.containsKey(widget.otherUserId) ||
+            users[widget.otherUserId] == null) {
+          final otherUserDoc = await _firestore
+              .collection('users')
+              .doc(widget.otherUserId)
+              .get();
+          final otherUserData = otherUserDoc.data() ?? {};
+
+          updates['users.${widget.otherUserId}'] = {
+            'name': otherUserData['name'] ?? widget.otherUserName,
+            'image': otherUserData['profilePhoto'] ?? widget.otherUserImage,
+            'role': otherUserData['role'] ?? 'Artist',
+          };
+          needsUpdate = true;
+        }
+
+        if (needsUpdate) {
+          await _firestore
+              .collection('chats')
+              .doc(widget.chatId)
+              .update(updates);
+        }
       }
     } catch (e) {
       debugPrint('Error initializing chat: $e');
@@ -101,10 +155,10 @@ class _ArtistBuyerChatPageState extends State<ArtistBuyerChatPage> {
     if (user == null) return;
 
     try {
-      await _firestore.collection('chats').doc(widget.chatId).set({
+      await _firestore.collection('chats').doc(widget.chatId).update({
         'lastRead_${user.uid}': FieldValue.serverTimestamp(),
         'unreadCount_${user.uid}': 0,
-      }, SetOptions(merge: true));
+      });
     } catch (e) {
       debugPrint('Error marking messages as read: $e');
     }
@@ -122,29 +176,16 @@ class _ArtistBuyerChatPageState extends State<ArtistBuyerChatPage> {
     final messagesRef = chatRef.collection('messages');
 
     try {
-      // Get current user data
-      final userDoc = await _firestore.collection('users').doc(user.uid).get();
-      final userData = userDoc.data() ?? {};
+      // Clear the text field immediately for better UX
+      _messageController.clear();
 
-      // Update chat document
-      await chatRef.set({
-        'participants': [user.uid, widget.otherUserId],
+      // Update chat document - use update instead of set to preserve existing data
+      await chatRef.update({
         'lastMessage': text,
         'lastTimestamp': FieldValue.serverTimestamp(),
         'unreadCount_${widget.otherUserId}': FieldValue.increment(1),
-        'artworkTitle': widget.artworkTitle,
-        'users': {
-          user.uid: {
-            'name': userData['name'] ?? user.displayName ?? 'User',
-            'image': userData['profilePhoto'] ?? user.photoURL ?? '',
-            'role': userData['role'] ?? 'Customer',
-          },
-          widget.otherUserId: {
-            'name': widget.otherUserName,
-            'image': widget.otherUserImage,
-          },
-        },
-      }, SetOptions(merge: true));
+        'unreadCount_${user.uid}': 0, // Reset sender's unread count
+      });
 
       // Add message
       await messagesRef.add({
@@ -154,7 +195,6 @@ class _ArtistBuyerChatPageState extends State<ArtistBuyerChatPage> {
         'type': 'text',
       });
 
-      _messageController.clear();
       _scrollToBottom();
     } catch (e) {
       debugPrint("Error sending message: $e");
@@ -185,7 +225,17 @@ class _ArtistBuyerChatPageState extends State<ArtistBuyerChatPage> {
           .child(widget.chatId)
           .child('${user.uid}_$timestamp.jpg');
 
-      final uploadTask = ref.putFile(image);
+      // Add metadata including uploader's UID for security rules
+      final metadata = SettableMetadata(
+        contentType: 'image/jpeg',
+        customMetadata: {
+          'uploadedBy': user.uid,
+          'uploadedAt': timestamp.toString(),
+          'chatId': widget.chatId,
+        },
+      );
+
+      final uploadTask = ref.putFile(image, metadata);
       final snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
@@ -208,14 +258,15 @@ class _ArtistBuyerChatPageState extends State<ArtistBuyerChatPage> {
       final chatRef = _firestore.collection('chats').doc(widget.chatId);
       final messagesRef = chatRef.collection('messages');
 
-      await chatRef.set({
-        'participants': [user.uid, widget.otherUserId],
+      // Update chat document - use update instead of set
+      await chatRef.update({
         'lastMessage': '📷 Photo',
         'lastTimestamp': FieldValue.serverTimestamp(),
         'unreadCount_${widget.otherUserId}': FieldValue.increment(1),
-        'artworkTitle': widget.artworkTitle,
-      }, SetOptions(merge: true));
+        'unreadCount_${user.uid}': 0,
+      });
 
+      // Add message
       await messagesRef.add({
         'senderId': user.uid,
         'imageUrl': imageUrl,
