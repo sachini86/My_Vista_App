@@ -5,27 +5,28 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
-class CustomChat extends StatefulWidget {
+/// Universal chat page that works for both buyers and artists
+class ArtistBuyerChatPage extends StatefulWidget {
   final String chatId;
+  final String otherUserId; // The person we're chatting with
   final String otherUserName;
-  final String otherUserId;
   final String otherUserImage;
   final String artworkTitle;
 
-  const CustomChat({
+  const ArtistBuyerChatPage({
     super.key,
     required this.chatId,
-    required this.otherUserName,
     required this.otherUserId,
+    required this.otherUserName,
     this.otherUserImage = '',
     this.artworkTitle = '',
   });
 
   @override
-  State<CustomChat> createState() => _CustomChatPageState();
+  State<ArtistBuyerChatPage> createState() => _ArtistBuyerChatPageState();
 }
 
-class _CustomChatPageState extends State<CustomChat> {
+class _ArtistBuyerChatPageState extends State<ArtistBuyerChatPage> {
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
   final _messageController = TextEditingController();
@@ -38,6 +39,7 @@ class _CustomChatPageState extends State<CustomChat> {
   void initState() {
     super.initState();
     _markMessagesAsRead();
+    _initializeChat();
   }
 
   @override
@@ -45,6 +47,52 @@ class _CustomChatPageState extends State<CustomChat> {
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Initialize chat document if it doesn't exist
+  Future<void> _initializeChat() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final chatDoc = await _firestore
+          .collection('chats')
+          .doc(widget.chatId)
+          .get();
+
+      if (!chatDoc.exists) {
+        // Get current user's data
+        final userDoc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        final userData = userDoc.data() ?? {};
+
+        // Create initial chat document
+        await _firestore.collection('chats').doc(widget.chatId).set({
+          'participants': [user.uid, widget.otherUserId],
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastMessage': '',
+          'lastTimestamp': FieldValue.serverTimestamp(),
+          'unreadCount_${user.uid}': 0,
+          'unreadCount_${widget.otherUserId}': 0,
+          'artworkTitle': widget.artworkTitle,
+          'users': {
+            user.uid: {
+              'name': userData['name'] ?? user.displayName ?? 'User',
+              'image': userData['profilePhoto'] ?? user.photoURL ?? '',
+              'role': userData['role'] ?? 'Customer',
+            },
+            widget.otherUserId: {
+              'name': widget.otherUserName,
+              'image': widget.otherUserImage,
+            },
+          },
+        });
+      }
+    } catch (e) {
+      debugPrint('Error initializing chat: $e');
+    }
   }
 
   /// Mark messages as read for current user
@@ -74,17 +122,22 @@ class _CustomChatPageState extends State<CustomChat> {
     final messagesRef = chatRef.collection('messages');
 
     try {
-      // Create/update chat document
+      // Get current user data
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      final userData = userDoc.data() ?? {};
+
+      // Update chat document
       await chatRef.set({
-        'participants': FieldValue.arrayUnion([user.uid, widget.otherUserId]),
+        'participants': [user.uid, widget.otherUserId],
         'lastMessage': text,
         'lastTimestamp': FieldValue.serverTimestamp(),
         'unreadCount_${widget.otherUserId}': FieldValue.increment(1),
         'artworkTitle': widget.artworkTitle,
         'users': {
           user.uid: {
-            'name': user.displayName ?? 'User',
-            'image': user.photoURL ?? '',
+            'name': userData['name'] ?? user.displayName ?? 'User',
+            'image': userData['profilePhoto'] ?? user.photoURL ?? '',
+            'role': userData['role'] ?? 'Customer',
           },
           widget.otherUserId: {
             'name': widget.otherUserName,
@@ -156,7 +209,7 @@ class _CustomChatPageState extends State<CustomChat> {
       final messagesRef = chatRef.collection('messages');
 
       await chatRef.set({
-        'participants': FieldValue.arrayUnion([user.uid, widget.otherUserId]),
+        'participants': [user.uid, widget.otherUserId],
         'lastMessage': '📷 Photo',
         'lastTimestamp': FieldValue.serverTimestamp(),
         'unreadCount_${widget.otherUserId}': FieldValue.increment(1),
@@ -265,7 +318,7 @@ class _CustomChatPageState extends State<CustomChat> {
             const SizedBox(height: 8),
             Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Color(0xFF000000),
                 fontWeight: FontWeight.w600,
               ),
@@ -418,10 +471,10 @@ class _CustomChatPageState extends State<CustomChat> {
             minWidth: type == 'image' ? 200 : 0,
           ),
           decoration: BoxDecoration(
-            color: isMe ? const Color(0x33B71C1C) : Colors.grey,
+            color: isMe ? const Color(0x33B71C1C) : Colors.grey[300],
             borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(8),
-              topRight: const Radius.circular(8),
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
               bottomLeft: isMe
                   ? const Radius.circular(16)
                   : const Radius.circular(4),
@@ -470,7 +523,7 @@ class _CustomChatPageState extends State<CustomChat> {
                     child: Text(
                       _formatTimestamp(timestamp),
                       style: TextStyle(
-                        color: isMe ? Colors.black : Colors.black,
+                        color: isMe ? Colors.black54 : Colors.black54,
                         fontSize: 12,
                       ),
                     ),
@@ -489,7 +542,7 @@ class _CustomChatPageState extends State<CustomChat> {
                   Text(
                     _formatTimestamp(timestamp),
                     style: TextStyle(
-                      color: isMe ? Colors.black : Colors.black45,
+                      color: isMe ? Colors.black54 : Colors.black45,
                       fontSize: 11,
                     ),
                   ),
@@ -507,7 +560,7 @@ class _CustomChatPageState extends State<CustomChat> {
     final currentUser = _auth.currentUser;
 
     return Scaffold(
-      backgroundColor: Colors.grey[30],
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         backgroundColor: const Color(0xff930909),
         elevation: 0,
@@ -587,14 +640,14 @@ class _CustomChatPageState extends State<CustomChat> {
                       children: [
                         Container(
                           padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: const Color(0x33B71C1C),
+                          decoration: const BoxDecoration(
+                            color: Color(0x33B71C1C),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
                             Icons.chat_bubble_outline,
                             size: 64,
-                            color: Color(0x33B71C1C),
+                            color: Color(0xff930909),
                           ),
                         ),
                         const SizedBox(height: 18),
@@ -614,6 +667,11 @@ class _CustomChatPageState extends State<CustomChat> {
                     ),
                   );
                 }
+
+                // Auto scroll to bottom when new messages arrive
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _scrollToBottom();
+                });
 
                 return ListView.builder(
                   controller: _scrollController,
@@ -685,8 +743,8 @@ class _CustomChatPageState extends State<CustomChat> {
                     onTap: _showImagePicker,
                     child: Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0x33B71C1C),
+                      decoration: const BoxDecoration(
+                        color: Color(0x33B71C1C),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(

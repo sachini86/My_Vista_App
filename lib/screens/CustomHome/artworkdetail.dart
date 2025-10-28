@@ -37,7 +37,9 @@ class ArtworkDetailPage extends StatelessWidget {
     // Sizes (map with keys: height, width, depth)
     final Map<String, dynamic> size = data['size'] ?? {};
 
-    // Artist info
+    // Artist info - Try multiple possible field names
+    final String artistId =
+        data['artistId'] ?? data['userId'] ?? data['uid'] ?? '';
     final String artistName = data['artistName'] ?? "Unknown Artist";
     final String artistProfileUrl = data['artistProfileUrl'] ?? "";
 
@@ -189,18 +191,111 @@ class ArtworkDetailPage extends StatelessWidget {
                       Row(
                         children: [
                           OutlinedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => CustomChat(
-                                    artistId:
-                                        data['artistId'] ??
-                                        '', // make sure artistId exists in data
-                                    artistName: data['artistName'] ?? 'Artist',
+                            onPressed: () async {
+                              final currentUser =
+                                  FirebaseAuth.instance.currentUser;
+
+                              if (currentUser == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Please login to chat'),
                                   ),
-                                ),
-                              );
+                                );
+                                return;
+                              }
+
+                              // Check if artistId is available
+                              if (artistId.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Artist information not available',
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              // Don't allow chatting with yourself
+                              if (currentUser.uid == artistId) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'You cannot chat with yourself',
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              try {
+                                // Create unique chat ID
+                                final userIds = [currentUser.uid, artistId]
+                                  ..sort();
+                                final chatId = '${userIds[0]}_${userIds[1]}';
+
+                                // Check if chat already exists, if not create it
+                                final chatDoc = await FirebaseFirestore.instance
+                                    .collection('chats')
+                                    .doc(chatId)
+                                    .get();
+
+                                if (!chatDoc.exists) {
+                                  // Create new chat document
+                                  await FirebaseFirestore.instance
+                                      .collection('chats')
+                                      .doc(chatId)
+                                      .set({
+                                        'participants': [
+                                          currentUser.uid,
+                                          artistId,
+                                        ],
+                                        'participantDetails': {
+                                          currentUser.uid: {
+                                            'name':
+                                                currentUser.displayName ??
+                                                'User',
+                                            'image': currentUser.photoURL ?? '',
+                                          },
+                                          artistId: {
+                                            'name': artistName,
+                                            'image': artistProfileUrl,
+                                          },
+                                        },
+                                        'lastMessage': '',
+                                        'lastMessageTime':
+                                            FieldValue.serverTimestamp(),
+                                        'createdAt':
+                                            FieldValue.serverTimestamp(),
+                                        'artworkId': artworkId,
+                                        'artworkTitle':
+                                            data['title'] ?? 'Artwork',
+                                      });
+                                }
+
+                                // Navigate to chat page
+                                if (!context.mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => CustomChat(
+                                      key: ValueKey(chatId),
+                                      chatId: chatId,
+                                      otherUserId: artistId,
+                                      otherUserName: artistName,
+                                      otherUserImage: artistProfileUrl,
+                                      artworkTitle: data['title'] ?? 'Artwork',
+                                    ),
+                                  ),
+                                );
+                              } catch (e) {
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error starting chat: $e'),
+                                  ),
+                                );
+                              }
                             },
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(
@@ -219,8 +314,57 @@ class ArtworkDetailPage extends StatelessWidget {
                           ),
                           const SizedBox(width: 10),
                           OutlinedButton(
-                            onPressed: () {
-                              // Add follow functionality
+                            onPressed: () async {
+                              if (_user == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Please login to follow'),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (artistId.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Artist information not available',
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              try {
+                                await FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(_user!.uid)
+                                    .collection('following')
+                                    .doc(artistId)
+                                    .set({
+                                      'artistId': artistId,
+                                      'artistName': artistName,
+                                      'artistProfileUrl': artistProfileUrl,
+                                      'followedAt':
+                                          FieldValue.serverTimestamp(),
+                                    });
+
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Artist followed successfully',
+                                    ),
+                                  ),
+                                );
+                              } catch (e) {
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error following artist: $e'),
+                                  ),
+                                );
+                              }
                             },
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(
@@ -290,25 +434,41 @@ class ArtworkDetailPage extends StatelessWidget {
                       style: TextStyle(color: Colors.black),
                     ),
                     onPressed: () async {
-                      if (_user == null) return;
-                      await FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(_user!.uid)
-                          .collection('favourites')
-                          .doc(artworkId)
-                          .set({
-                            'artworkId': artworkId,
-                            'title': data['title'],
-                            'artistName': artistName,
-                            'price': price,
-                            'currency': currency,
-                            'artworkUrl': data['artworkUrl'],
-                            'addedAt': FieldValue.serverTimestamp(),
-                          });
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Added to Favorites")),
-                      );
+                      if (_user == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please login to add favorites'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      try {
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(_user!.uid)
+                            .collection('favourites')
+                            .doc(artworkId)
+                            .set({
+                              'artworkId': artworkId,
+                              'title': data['title'],
+                              'artistName': artistName,
+                              'artistId': artistId,
+                              'price': price,
+                              'currency': currency,
+                              'artworkUrl': data['artworkUrl'],
+                              'addedAt': FieldValue.serverTimestamp(),
+                            });
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Added to Favorites")),
+                        );
+                      } catch (e) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+                      }
                     },
                   ),
                 ),
@@ -321,26 +481,42 @@ class ArtworkDetailPage extends StatelessWidget {
                       backgroundColor: const Color(0xff930909),
                     ),
                     onPressed: () async {
-                      if (_user == null) return;
-                      await FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(_user!.uid)
-                          .collection('cart')
-                          .doc(artworkId)
-                          .set({
-                            'artworkId': artworkId,
-                            'title': data['title'],
-                            'artistName': artistName,
-                            'price': price,
-                            'currency': currency,
-                            'artworkUrl': data['artworkUrl'],
-                            'qty': FieldValue.increment(1),
-                            'addedAt': FieldValue.serverTimestamp(),
-                          }, SetOptions(merge: true));
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Added to Cart")),
-                      );
+                      if (_user == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please login to add to cart'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      try {
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(_user!.uid)
+                            .collection('cart')
+                            .doc(artworkId)
+                            .set({
+                              'artworkId': artworkId,
+                              'title': data['title'],
+                              'artistName': artistName,
+                              'artistId': artistId,
+                              'price': price,
+                              'currency': currency,
+                              'artworkUrl': data['artworkUrl'],
+                              'qty': FieldValue.increment(1),
+                              'addedAt': FieldValue.serverTimestamp(),
+                            }, SetOptions(merge: true));
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Added to Cart")),
+                        );
+                      } catch (e) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+                      }
                     },
                   ),
                 ),

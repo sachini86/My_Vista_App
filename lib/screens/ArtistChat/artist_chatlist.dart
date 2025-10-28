@@ -1,81 +1,102 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'artist_chat_page.dart';
+import 'package:my_vista/screens/ArtistChat/artist_chat.dart';
 
-class ArtistChatList extends StatelessWidget {
+class ArtistChatList extends StatefulWidget {
   const ArtistChatList({super.key});
 
   @override
+  State<ArtistChatList> createState() => _ArtistChatListState();
+}
+
+class _ArtistChatListState extends State<ArtistChatList> {
+  final currentUser = FirebaseAuth.instance.currentUser;
+
+  @override
   Widget build(BuildContext context) {
-    final currentUid = FirebaseAuth.instance.currentUser!.uid;
+    if (currentUser == null) {
+      return const Center(child: Text('Please log in.'));
+    }
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xff930909),
-        title: const Text('My Chats', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Artist Chats',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser!.uid)
             .collection('chats')
-            .where('participants', arrayContains: currentUid)
             .orderBy('lastMessageTime', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.hasError) {
+            return const Center(child: Text('Error loading chats'));
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
+          if (snapshot.data == null || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('No chats yet'));
+          }
+
           final chats = snapshot.data!.docs;
-          if (chats.isEmpty) return const Center(child: Text('No chats yet'));
 
           return ListView.builder(
             itemCount: chats.length,
             itemBuilder: (context, index) {
               final chat = chats[index];
-              final participants = List<String>.from(chat['participants']);
-              final buyerId = participants.firstWhere((id) => id != currentUid);
-              final lastMessage = chat['lastMessage'] ?? '';
+              final chatId = chat.id;
+              final data = chat.data() as Map<String, dynamic>;
 
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(buyerId)
-                    .get(),
-                builder: (context, buyerSnapshot) {
-                  if (!buyerSnapshot.hasData) return const SizedBox();
+              final otherUserName = data['otherUserName'] ?? 'Unknown User';
+              final otherUserImage =
+                  data['otherUserImage'] ??
+                  'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+              final lastMessage = data['lastMessage'] ?? '';
+              final lastMessageTime = (data['lastMessageTime'] as Timestamp?)
+                  ?.toDate();
 
-                  final buyerData =
-                      buyerSnapshot.data!.data() as Map<String, dynamic>? ?? {};
-                  final buyerName = buyerData['name'] ?? 'Buyer';
-                  final buyerImage = buyerData['profileImageUrl'];
-
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundImage: buyerImage != null
-                          ? NetworkImage(buyerImage)
-                          : null,
-                      child: buyerImage == null
-                          ? const Icon(Icons.person)
-                          : null,
-                    ),
-                    title: Text(buyerName),
-                    subtitle: Text(
-                      lastMessage,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ArtistChat(
-                            buyerId: buyerId,
-                            buyerName: buyerName,
-                          ),
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundImage: NetworkImage(otherUserImage),
+                ),
+                title: Text(
+                  otherUserName,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  lastMessage,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: lastMessageTime != null
+                    ? Text(
+                        _formatTime(lastMessageTime),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
                         ),
-                      );
-                    },
+                      )
+                    : null,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ArtistChatPage(
+                        chatId: chatId,
+                        otherUserId: data['otherUserId'],
+                        otherUserName: otherUserName,
+                        otherUserImage: otherUserImage,
+                      ),
+                    ),
                   );
                 },
               );
@@ -84,5 +105,14 @@ class ArtistChatList extends StatelessWidget {
         },
       ),
     );
+  }
+
+  String _formatTime(DateTime time) {
+    final now = DateTime.now();
+    if (now.difference(time).inDays == 0) {
+      return "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
+    } else {
+      return "${time.day}/${time.month}/${time.year}";
+    }
   }
 }

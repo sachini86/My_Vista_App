@@ -1,32 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:my_vista/screens/CustomChat/custom_chat.dart';
+import 'package:my_vista/screens/BothChats/artistbuyer_chatpage.dart'; // Import the unified chat page
 
-class CustomChatList extends StatelessWidget {
-  const CustomChatList({super.key});
+class ChatListPage extends StatefulWidget {
+  const ChatListPage({super.key});
 
-  String _formatTimestamp(Timestamp? ts) {
-    if (ts == null) return '';
-    final dt = ts.toDate();
-    final now = DateTime.now();
-    final difference = now.difference(dt);
+  @override
+  State<ChatListPage> createState() => _ChatListPageState();
+}
 
-    if (difference.inDays == 0) {
-      final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-      final minute = dt.minute.toString().padLeft(2, '0');
-      final ampm = dt.hour >= 12 ? 'PM' : 'AM';
-      return '$hour:$minute $ampm';
-    } else if (difference.inDays == 1) {
-      return 'Yesterday';
-    } else {
-      return '${dt.day}/${dt.month}';
-    }
-  }
+class _ChatListPageState extends State<ChatListPage> {
+  final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = FirebaseAuth.instance.currentUser;
+    final currentUser = _auth.currentUser;
 
     if (currentUser == null) {
       return Scaffold(
@@ -34,23 +24,23 @@ class CustomChatList extends StatelessWidget {
           title: const Text('Messages'),
           backgroundColor: const Color(0xff930909),
         ),
-        body: const Center(child: Text('Please login to view messages')),
+        body: const Center(child: Text('Please log in to view messages')),
       );
     }
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
+        title: const Text(
+          'Messages',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: const Color(0xff930909),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          'Messages',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
+        stream: _firestore
             .collection('chats')
             .where('participants', arrayContains: currentUser.uid)
             .orderBy('lastTimestamp', descending: true)
@@ -60,31 +50,37 @@ class CustomChatList extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          final chats = snapshot.data?.docs ?? [];
+
+          if (chats.isEmpty) {
             return Center(
               child: Column(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEEBEC6).withValues(alpha: 0.1),
+                    padding: const EdgeInsets.all(24),
+                    decoration: const BoxDecoration(
+                      color: Color(0x33B71C1C),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.chat_bubble_outline,
                       size: 64,
-                      color: Color(0xFFEEBEC6),
+                      color: Color(0xff930909),
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 20),
                   const Text(
-                    'No messages yet',
+                    'No conversations yet',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   const Text(
-                    'Start a conversation about an artwork',
+                    'Start chatting with artists or buyers',
                     style: TextStyle(color: Colors.grey, fontSize: 16),
                   ),
                 ],
@@ -92,18 +88,16 @@ class CustomChatList extends StatelessWidget {
             );
           }
 
-          final chats = snapshot.data!.docs;
-
           return ListView.separated(
             itemCount: chats.length,
             separatorBuilder: (context, index) =>
-                Divider(height: 1, color: Colors.black12),
+                Divider(height: 1, color: Colors.grey[300], indent: 80),
             itemBuilder: (context, index) {
               final chatDoc = chats[index];
               final chatData = chatDoc.data() as Map<String, dynamic>;
               final chatId = chatDoc.id;
 
-              // Get other user's ID
+              // Get the other user's info
               final participants = List<String>.from(
                 chatData['participants'] ?? [],
               );
@@ -112,18 +106,22 @@ class CustomChatList extends StatelessWidget {
                 orElse: () => '',
               );
 
-              // Get user data
-              final users = chatData['users'] as Map<String, dynamic>?;
-              final otherUserData =
-                  users?[otherUserId] as Map<String, dynamic>?;
+              if (otherUserId.isEmpty) return const SizedBox.shrink();
 
-              final otherUserName = otherUserData?['name'] ?? 'User';
-              final otherUserImage = otherUserData?['image'] ?? '';
-              final lastMessage = chatData['lastMessage'] ?? '';
+              // Get other user's data from the chat document
+              final users = chatData['users'] as Map<String, dynamic>? ?? {};
+              final otherUserData =
+                  users[otherUserId] as Map<String, dynamic>? ?? {};
+
+              final otherUserName =
+                  otherUserData['name']?.toString() ?? 'Unknown';
+              final otherUserImage = otherUserData['image']?.toString() ?? '';
+              final lastMessage =
+                  chatData['lastMessage']?.toString() ?? 'No messages yet';
               final lastTimestamp = chatData['lastTimestamp'] as Timestamp?;
+              final artworkTitle = chatData['artworkTitle']?.toString() ?? '';
               final unreadCount =
                   chatData['unreadCount_${currentUser.uid}'] ?? 0;
-              final artworkTitle = chatData['artworkTitle'] ?? '';
 
               return ListTile(
                 contentPadding: const EdgeInsets.symmetric(
@@ -132,31 +130,37 @@ class CustomChatList extends StatelessWidget {
                 ),
                 leading: Stack(
                   children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: const Color(0xFFEEBEC6),
-                      backgroundImage: otherUserImage.isNotEmpty
-                          ? NetworkImage(otherUserImage)
-                          : null,
-                      child: otherUserImage.isEmpty
-                          ? Text(
-                              otherUserName[0].toUpperCase(),
-                              style: const TextStyle(
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xff930909),
+                          width: 2,
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 28,
+                        backgroundColor: Colors.grey[200],
+                        backgroundImage: otherUserImage.isNotEmpty
+                            ? NetworkImage(otherUserImage)
+                            : null,
+                        child: otherUserImage.isEmpty
+                            ? const Icon(
+                                Icons.person,
                                 color: Color(0xff930909),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                              ),
-                            )
-                          : null,
+                                size: 28,
+                              )
+                            : null,
+                      ),
                     ),
                     if (unreadCount > 0)
                       Positioned(
                         right: 0,
-                        top: 0,
+                        bottom: 0,
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: const BoxDecoration(
-                            color: Colors.red,
+                            color: Color(0xff930909),
                             shape: BoxShape.circle,
                           ),
                           constraints: const BoxConstraints(
@@ -164,7 +168,7 @@ class CustomChatList extends StatelessWidget {
                             minHeight: 20,
                           ),
                           child: Text(
-                            unreadCount > 99 ? '99+' : unreadCount.toString(),
+                            unreadCount > 99 ? '99+' : '$unreadCount',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -176,15 +180,34 @@ class CustomChatList extends StatelessWidget {
                       ),
                   ],
                 ),
-                title: Text(
-                  otherUserName,
-                  style: TextStyle(
-                    fontWeight: unreadCount > 0
-                        ? FontWeight.bold
-                        : FontWeight.w600,
-                    fontSize: 16,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+                title: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        otherUserName,
+                        style: TextStyle(
+                          fontWeight: unreadCount > 0
+                              ? FontWeight.bold
+                              : FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (lastTimestamp != null)
+                      Text(
+                        _formatTimestamp(lastTimestamp),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: unreadCount > 0
+                              ? const Color(0xff930909)
+                              : Colors.grey[600],
+                          fontWeight: unreadCount > 0
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                      ),
+                  ],
                 ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,9 +216,9 @@ class CustomChatList extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         artworkTitle,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[600],
+                          color: Color(0xff930909),
                           fontStyle: FontStyle.italic,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -210,31 +233,19 @@ class CustomChatList extends StatelessWidget {
                             ? Colors.black87
                             : Colors.grey[600],
                         fontWeight: unreadCount > 0
-                            ? FontWeight.w500
+                            ? FontWeight.w600
                             : FontWeight.normal,
                       ),
-                      overflow: TextOverflow.ellipsis,
                       maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ),
-                trailing: Text(
-                  _formatTimestamp(lastTimestamp),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: unreadCount > 0
-                        ? const Color(0xff930909)
-                        : Colors.grey[500],
-                    fontWeight: unreadCount > 0
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                  ),
                 ),
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => CustomChat(
+                      builder: (_) => ArtistBuyerChatPage(
                         chatId: chatId,
                         otherUserId: otherUserId,
                         otherUserName: otherUserName,
@@ -250,5 +261,25 @@ class CustomChatList extends StatelessWidget {
         },
       ),
     );
+  }
+
+  String _formatTimestamp(Timestamp timestamp) {
+    final dt = timestamp.toDate();
+    final now = DateTime.now();
+    final difference = now.difference(dt);
+
+    if (difference.inDays == 0) {
+      final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+      final minute = dt.minute.toString().padLeft(2, '0');
+      final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+      return '$hour:$minute $ampm';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return weekdays[dt.weekday - 1];
+    } else {
+      return '${dt.day}/${dt.month}/${dt.year}';
+    }
   }
 }

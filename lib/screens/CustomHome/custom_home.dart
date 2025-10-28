@@ -7,7 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:my_vista/screens/CustomHome/artworkdetail.dart';
 import 'package:my_vista/screens/Customchat/notificationpage.dart';
-import 'package:my_vista/screens/ArtistChat/artist_chat_page.dart';
+import 'package:my_vista/screens/BothChats/artistbuyer_chatpage.dart';
 
 class CustomerHomePage extends StatefulWidget {
   const CustomerHomePage({super.key});
@@ -521,15 +521,21 @@ void _onArtistTap(
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.chat_bubble_outline),
                       label: const Text('Chat'),
-                      onPressed: () {
+                      onPressed: () async {
                         if (currentUser == null) return;
                         Navigator.pop(context);
+
+                        final participants = [currentUser.uid, artistId]
+                          ..sort();
+                        final chatId = '${participants[0]}_${participants[1]}';
+
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => ArtistChat(
-                              buyerId: artistId,
-                              buyerName: a['name'] ?? 'Artist',
+                            builder: (_) => ArtistBuyerChatPage(
+                              chatId: chatId,
+                              otherUserId: artistId,
+                              otherUserName: a['name'] ?? 'Artist',
                             ),
                           ),
                         );
