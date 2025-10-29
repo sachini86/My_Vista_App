@@ -127,9 +127,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return Scaffold(
       backgroundColor: Colors.grey[200],
       appBar: AppBar(
-        title: const Text('Checkout', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Checkout',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: const Color(0xff930909),
-        centerTitle: true,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),

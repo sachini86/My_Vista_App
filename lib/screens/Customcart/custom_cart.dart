@@ -14,7 +14,10 @@ class CustomCart extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: const Color(0xff930909),
-        title: const Text('Cart', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Cart',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
       ),
       body: user == null
           ? const Center(child: Text('Sign in to view your cart'))

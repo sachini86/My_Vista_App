@@ -19,7 +19,10 @@ class CustomFavourite extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xff930909),
-        title: const Text("My Favorites"),
+        title: const Text(
+          "My Favorites",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
@@ -69,8 +72,10 @@ class CustomFavourite extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                ArtworkDetailPage(data: fav, artworkId: favId),
+                            builder: (_) => ArtworkDetailPage(
+                              data: fav,
+                              artworkId: fav['artworkId'] ?? favId,
+                            ),
                           ),
                         );
                       },
